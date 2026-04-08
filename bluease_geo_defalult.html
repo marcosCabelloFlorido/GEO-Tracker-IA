@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluease — GEO Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:       #0b1829;
+  --navy-mid:   #112240;
+  --navy-card:  #162d4a;
+  --navy-border:#1e3a5f;
+  --emerald:    #10b981;
+  --emerald-dim:#0d9268;
+  --emerald-glow: rgba(16,185,129,0.12);
+  --emerald-glow2: rgba(16,185,129,0.06);
+  --amber:      #f59e0b;
+  --red:        #ef4444;
+  --blue-accent:#3b82f6;
+  --text-primary: #e2e8f0;
+  --text-secondary: #7fa3c4;
+  --text-muted:   #4a6fa8;
+  --border:     rgba(30,58,95,0.8);
+  --border-light: rgba(30,58,95,0.4);
+  --font-display: 'Inter', sans-serif;
+  --font-mono:    'Roboto Mono', monospace;
+  --radius:     10px;
+  --radius-sm:  6px;
+  --shadow:     0 4px 24px rgba(0,0,0,0.3);
+  --shadow-lg:  0 8px 48px rgba(0,0,0,0.5);
+  --transition: 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-display);
+  background: var(--navy);
+  color: var(--text-primary);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── BACKGROUND TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(16,185,129,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(59,130,246,0.04) 0%, transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── LAYOUT ── */
+.app { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px;
+  background: var(--navy-mid);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-dot {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--emerald), #34d399);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+  color: var(--navy);
+  font-weight: 800;
+}
+.logo-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+.logo-sub {
+  font-size: 9.5px;
+  color: var(--emerald);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+
+.nav-step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  color: var(--text-muted);
+  user-select: none;
+}
+.nav-step:hover { background: var(--emerald-glow2); color: var(--text-secondary); }
+.nav-step.active { background: var(--emerald-glow); color: var(--emerald); }
+.nav-step.active::before {
+  content: '';
+  position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 2.5px; background: var(--emerald);
+  border-radius: 0 2px 2px 0;
+}
+.nav-step.done { color: var(--text-secondary); }
+.nav-step.done .step-num { background: var(--emerald); color: #000; }
+
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.nav-step.active .step-num { background: var(--emerald); color: #000; border-color: var(--emerald); }
+
+.step-label { font-size: 12.5px; font-weight: 600; }
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-light);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(11,24,41,0.8);
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-screen {
+  font-size: 12px; font-weight: 700;
+  color: var(--emerald);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.topbar-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.topbar-sep { width: 1px; height: 18px; background: var(--border); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.progress-chips { display: flex; gap: 6px; }
+.chip {
+  height: 6px; width: 32px;
+  border-radius: 3px;
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+.chip.done { background: var(--emerald); border-color: var(--emerald); }
+.chip.active { background: rgba(16,185,129,0.4); border-color: var(--emerald); }
+
+/* ── CONTENT ── */
+.content { flex: 1; overflow-y: auto; padding: 28px; }
+
+/* ── SCREENS ── */
+.screen { display: none; animation: fadeSlide 0.25s ease; }
+.screen.active { display: block; }
+@keyframes fadeSlide { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── SECTION HEADER ── */
+.screen-header { margin-bottom: 28px; }
+.screen-header h1 {
+  font-size: 26px; font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.6px;
+}
+.screen-header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── FORM ELEMENTS ── */
+label {
+  display: block;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+.field-input, .field-select {
+  width: 100%;
+  padding: 10px 13px;
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  outline: none;
+  transition: all var(--transition);
+}
+.field-input:focus, .field-select:focus {
+  border-color: var(--emerald);
+  background: rgba(16,185,129,0.04);
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.08);
+}
+.field-input::placeholder { color: var(--text-muted); }
+.field-select { cursor: pointer; }
+.field-select option { background: var(--navy-mid); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+.form-full { margin-bottom: 14px; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none;
+  transition: all var(--transition);
+  text-decoration: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dim));
+  color: #000;
+  box-shadow: 0 2px 12px rgba(16,185,129,0.3);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(16,185,129,0.45); }
+.btn-secondary {
+  background: var(--navy-mid);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--emerald); color: var(--emerald); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
+  font-size: 12px;
+}
+.btn-ghost:hover { color: var(--text-secondary); border-color: var(--border); }
+.btn-danger {
+  background: rgba(239,68,68,0.1);
+  color: var(--red);
+  border: 1px solid rgba(239,68,68,0.2);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--emerald-glow2); }
+
+.td-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  padding: 2px 0;
+}
+.td-input::placeholder { color: var(--text-muted); }
+
+/* ── SCREEN 1: CONFIGURACIÓN ── */
+.add-row-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all var(--transition);
+  font-family: var(--font-display);
+  width: 100%;
+  justify-content: center;
+}
+.add-row-btn:hover { border-color: var(--emerald); color: var(--emerald); background: var(--emerald-glow2); }
+
+/* ── SCREEN 2: ANÁLISIS ── */
+.progress-bar-wrap {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px;
+}
+.progress-track {
+  flex: 1; height: 6px;
+  background: var(--navy-mid);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--emerald), #34d399);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.progress-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--emerald);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.check-list { display: flex; flex-direction: column; gap: 8px; }
+.check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-mid);
+  border: 1px solid var(--border-light);
+}
+.check-icon { font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.check-icon.ok { color: var(--emerald); }
+.check-icon.warn { color: var(--amber); }
+.check-icon.fail { color: var(--red); }
+.check-text { font-size: 13px; color: var(--text-primary); }
+.check-text.fail { color: var(--text-secondary); }
+.check-text.warn { color: var(--text-secondary); }
+
+.manual-section { margin-top: 20px; }
+.manual-q { margin-bottom: 18px; }
+.manual-q-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-opt {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-mid);
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-display);
+  transition: all var(--transition);
+}
+.btn-opt:hover { border-color: var(--emerald); color: var(--emerald); }
+.btn-opt.selected { background: var(--emerald-glow); border-color: var(--emerald); color: var(--emerald); }
+.btn-opt.selected-partial { background: rgba(245,158,11,0.1); border-color: var(--amber); color: var(--amber); }
+.btn-opt.selected-no { background: rgba(239,68,68,0.1); border-color: var(--red); color: var(--red); }
+
+.info-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 50%;
+  color: var(--blue-accent);
+  font-size: 10px; font-weight: 700;
+  cursor: pointer;
+}
+
+.nav-actions {
+  display: flex; gap: 10px;
+  margin-top: 24px;
+  justify-content: space-between;
+}
+
+/* ── SCREEN 3: DASHBOARD ── */
+.scores-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+.score-card {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.score-card.highlight { border-color: rgba(16,185,129,0.4); }
+.score-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--border);
+}
+.score-card.highlight::before { background: var(--emerald); }
+.score-card.comp1::before { background: var(--blue-accent); }
+.score-card.comp2::before { background: var(--amber); }
+
+.score-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+.score-name { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; }
+.score-number { font-size: 36px; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); line-height: 1; }
+.score-bar-wrap { margin-top: 12px; height: 5px; background: var(--navy-card); border-radius: 3px; overflow: hidden; }
+.score-bar { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.score-bar.us { background: var(--emerald); }
+.score-bar.c1 { background: var(--blue-accent); }
+.score-bar.c2 { background: var(--amber); }
+
+.brechas-list { display: flex; flex-direction: column; gap: 8px; }
+.brecha-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--navy-mid);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+.brecha-left { display: flex; align-items: center; gap: 10px; }
+.brecha-icon { font-size: 14px; font-weight: 700; }
+.brecha-icon.fail { color: var(--red); }
+.brecha-icon.warn { color: var(--amber); }
+.brecha-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.brecha-pts {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.brecha-pts.alta { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.brecha-pts.media { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+
+.compare-table th { font-size: 10px; }
+.compare-cell { font-size: 12px; text-align: center; font-weight: 700; }
+.cell-ok { color: var(--emerald); }
+.cell-partial { color: var(--amber); }
+.cell-no { color: var(--red); }
+
+.dash-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* ── SCREEN 4: PLAN ── */
+.priority-section { margin-bottom: 20px; }
+.priority-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.priority-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.priority-dot.alta { background: var(--red); }
+.priority-dot.media { background: var(--amber); }
+.priority-dot.baja { background: var(--emerald); }
+.priority-title {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.task-card {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.task-card:hover { border-color: var(--emerald); transform: translateX(3px); }
+.task-card.done-task { opacity: 0.5; }
+.task-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.task-check {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  margin-right: 10px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  transition: all var(--transition);
+}
+.task-check.checked { background: var(--emerald); border-color: var(--emerald); color: #000; }
+.task-title-row { display: flex; align-items: flex-start; gap: 0; }
+.task-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); line-height: 1.35; }
+.task-impact {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+  color: var(--emerald);
+  background: var(--emerald-glow);
+  border: 1px solid rgba(16,185,129,0.25);
+  padding: 3px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.task-meta {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.task-meta span { display: flex; align-items: center; gap: 5px; }
+
+.plan-actions { display: flex; gap: 10px; margin-top: 24px; }
+
+/* ── TOAST ── */
+#toasts {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 999;
+}
+.toast {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--emerald);
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-primary);
+  display: flex; gap: 10px;
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast-icon { color: var(--emerald); font-weight: 800; }
+@keyframes toastIn { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:translateX(0); } }
+
+/* ── STAT PILLS ── */
+.stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.stat-pill {
+  background: var(--navy-mid);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  flex: 1; min-width: 120px;
+}
+.stat-pill-val { font-size: 22px; font-weight: 800; color: var(--text-primary); font-family: var(--font-mono); }
+.stat-pill-lbl { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px; margin-top: 2px; }
+
+/* ── COMPETITOR TABS ── */
+.comp-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+.comp-tab {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.comp-tab:hover { color: var(--text-secondary); }
+.comp-tab.active { background: var(--emerald-glow); border-color: var(--emerald); color: var(--emerald); }
+
+/* ── UPDATE TIME ── */
+.update-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+  background: var(--navy-mid);
+  border: 1px solid var(--border-light);
+  padding: 4px 10px; border-radius: 20px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div style="background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;padding:2px;">
+        <img src="logo.png" alt="Bluease" style="height:24px;width:auto;">
+      </div>
+      <div>
+        <div class="logo-sub">GEO Tracker</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-step active" id="nav-1" onclick="goScreen(1)">
+        <div class="step-num">1</div>
+        <div class="step-label">Configuración</div>
+      </div>
+      <div class="nav-step" id="nav-2" onclick="goScreen(2)">
+        <div class="step-num">2</div>
+        <div class="step-label">Análisis</div>
+      </div>
+      <div class="nav-step" id="nav-3" onclick="goScreen(3)">
+        <div class="step-num">3</div>
+        <div class="step-label">Dashboard</div>
+      </div>
+      <div class="nav-step" id="nav-4" onclick="goScreen(4)">
+        <div class="step-num">4</div>
+        <div class="step-label">Plan de acción</div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+    </div>
+  </aside>
+
+  <div class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-screen" id="topbar-screen">PASO 01</span>
+        <div class="topbar-sep"></div>
+        <span class="topbar-title" id="topbar-title">Configuración</span>
+      </div>
+      <div class="topbar-right">
+        <div class="progress-chips">
+          <div class="chip active" id="chip-1"></div>
+          <div class="chip" id="chip-2"></div>
+          <div class="chip" id="chip-3"></div>
+          <div class="chip" id="chip-4"></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <div class="screen active" id="screen-1">
+        <div class="screen-header">
+          <h1>Configuración inicial</h1>
+          <p>Define tu empresa y los competidores a analizar. Esta información se usará para calcular el GEO Score comparativo.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Mi empresa</div>
+          <div class="form-row">
+            <div>
+              <label>Nombre de la empresa</label>
+              <input type="text" class="field-input" id="my-name" placeholder="Ej. Bluease.io" value="Bluease.io">
+            </div>
+            <div>
+              <label>Dominio web</label>
+              <input type="text" class="field-input" id="my-domain" placeholder="bluease.io" value="bluease.io">
+            </div>
+          </div>
+          <div class="form-full">
+            <label>Sector / categoría</label>
+            <select class="field-select" id="my-sector">
+              <option>Sostenibilidad en eventos</option>
+              <option>SaaS B2B</option>
+              <option>Consultoría medioambiental</option>
+              <option>Tecnología verde</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Competidores a analizar</div>
+          <div class="table-wrap">
+            <table id="comp-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Dominio</th>
+                  <th>Sector</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="comp-body">
+                <tr>
+                  <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px">01</td>
+                  <td><input class="td-input" placeholder="Ej. EcoEvents Pro" value="EcoEvents Pro"></td>
+                  <td><input class="td-input" placeholder="ecoevents.io" value="ecoevents.io"></td>
+                  <td><input class="td-input" placeholder="Eventos sostenibles" value="Eventos sostenibles"></td>
+                  <td><button class="btn btn-danger" onclick="removeRow(this)">✕</button></td>
+                </tr>
+                <tr>
+                  <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px">02</td>
+                  <td><input class="td-input" placeholder="Nombre" value="GreenMice"></td>
+                  <td><input class="td-input" placeholder="dominio.com" value="greenmice.com"></td>
+                  <td><input class="td-input" placeholder="Sector" value="MICE sostenible"></td>
+                  <td><button class="btn btn-danger" onclick="removeRow(this)">✕</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="add-row-btn" onclick="addCompetitor()">+ Añadir competidor</button>
+          <div style="text-align:center;margin-top:10px;font-size:11.5px;color:var(--text-muted);font-family:var(--font-mono)">
+            Competidores: <span id="comp-count" style="color:var(--emerald)">2</span> / <span id="comp-max">8</span> (mín. <span id="comp-min">3</span>)
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:8px">
+          <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="startAnalysis()">
+            Iniciar análisis
+          </button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-2">
+        <div class="screen-header">
+          <h1>Análisis GEO</h1>
+          <p>Revisión automática de señales y completado manual de métricas que requieren verificación humana.</p>
+        </div>
+
+        <div class="comp-tabs" id="comp-tabs">
+          <div class="comp-tab active" onclick="selectComp(this, 0)">Nosotros</div>
+          <div class="comp-tab" onclick="selectComp(this, 1)">Competidor 1</div>
+          <div class="comp-tab" onclick="selectComp(this, 2)">Competidor 2</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Progreso del análisis — <span id="comp-current-name">Bluease.io</span></div>
+          <div class="progress-bar-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="prog-fill" style="width:66%"></div>
+            </div>
+            <span class="progress-label" id="prog-label">8 / 12 métricas</span>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">
+              Detectado automáticamente
+            </div>
+            <div class="check-list" id="auto-checks">
+              <div class="check-item">
+                <span class="check-icon ok">✓</span>
+                <span class="check-text">Tiene blog activo con publicaciones recientes</span>
+              </div>
+              <div class="check-item">
+                <span class="check-icon ok">✓</span>
+                <span class="check-text">Usa encabezados H1/H2/H3 estructurados</span>
+              </div>
+              <div class="check-item">
+                <span class="check-icon ok">✓</span>
+                <span class="check-text">Schema markup implementado</span>
+              </div>
+              <div class="check-item">
+                <span class="check-icon fail">✕</span>
+                <span class="check-text fail">No tiene página FAQ estructurada</span>
+              </div>
+              <div class="check-item">
+                <span class="check-icon warn">!</span>
+                <span class="check-text warn">Alt text parcial (3/8 imágenes tienen descripción)</span>
+              </div>
+              <div class="check-item">
+                <span class="check-icon fail">✕</span>
+                <span class="check-text fail">No tiene sección "Cómo funciona" con pasos numerados</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-light);padding-top:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">
+              Completar manualmente
+            </div>
+            <div class="manual-section">
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Aparece en ChatGPT cuando se pregunta por sostenibilidad en eventos?
+                  <span class="info-tip" title="Prueba la consulta: '¿Qué herramientas existen para medir la huella de carbono en eventos?'">i</span>
+                </div>
+                <div class="btn-options" data-q="chatgpt">
+                  <button class="btn-opt" onclick="selectOpt(this,'chatgpt','si')">✓ Sí</button>
+                  <button class="btn-opt selected-partial" onclick="selectOpt(this,'chatgpt','parcial')">~ Parcialmente</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'chatgpt','no')">✕ No</button>
+                </div>
+              </div>
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Aparece en Perplexity AI en consultas sobre CSRD y eventos?
+                  <span class="info-tip" title="Prueba: 'cómo cumplir la CSRD en eventos corporativos España'">i</span>
+                </div>
+                <div class="btn-options" data-q="perplexity">
+                  <button class="btn-opt" onclick="selectOpt(this,'perplexity','si')">✓ Sí</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'perplexity','parcial')">~ Parcialmente</button>
+                  <button class="btn-opt selected-no" onclick="selectOpt(this,'perplexity','no')">✕ No</button>
+                </div>
+              </div>
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Aparece en Google AI Overview / SGE?
+                  <span class="info-tip" title="Busca en Google con VPN UK o US para ver el AI Overview">i</span>
+                </div>
+                <div class="btn-options" data-q="google">
+                  <button class="btn-opt" onclick="selectOpt(this,'google','si')">✓ Sí</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'google','parcial')">~ Parcialmente</button>
+                  <button class="btn-opt selected-no" onclick="selectOpt(this,'google','no')">✕ No</button>
+                </div>
+              </div>
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Tiene casos de uso / clientes reales publicados con datos verificables?
+                  <span class="info-tip" title="Con nombre de empresa, cifras de impacto y metodología">i</span>
+                </div>
+                <div class="btn-options" data-q="casos">
+                  <button class="btn-opt selected-partial" onclick="selectOpt(this,'casos','si')">✓ Sí, con datos</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'casos','parcial')">~ Sin datos verificables</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'casos','no')">✕ No tiene</button>
+                </div>
+              </div>
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Publica estadísticas propias / datos originales en su web o blog?
+                  <span class="info-tip" title="Information Gain: datos que solo ellos tienen">i</span>
+                </div>
+                <div class="btn-options" data-q="datos">
+                  <button class="btn-opt" onclick="selectOpt(this,'datos','si')">✓ Regularmente</button>
+                  <button class="btn-opt selected-partial" onclick="selectOpt(this,'datos','parcial')">~ Ocasionalmente</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'datos','no')">✕ No</button>
+                </div>
+              </div>
+
+              <div class="manual-q">
+                <div class="manual-q-label">
+                  ¿Tiene glosario de términos técnicos (CSRD, GHG Protocol, ODS...)?
+                  <span class="info-tip" title="Los LLMs adoran páginas que definen términos clave del sector">i</span>
+                </div>
+                <div class="btn-options" data-q="glosario">
+                  <button class="btn-opt" onclick="selectOpt(this,'glosario','si')">✓ Sí</button>
+                  <button class="btn-opt" onclick="selectOpt(this,'glosario','parcial')">~ Parcialmente</button>
+                  <button class="btn-opt selected-no" onclick="selectOpt(this,'glosario','no')">✕ No</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-actions">
+          <button class="btn btn-secondary" onclick="goScreen(1)">← Anterior</button>
+          <button class="btn btn-primary" onclick="goScreen(3)">Guardar y continuar →</button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-3">
+        <div class="screen-header">
+          <h1>Dashboard GEO</h1>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px">
+            <p style="margin:0">Comparativa de posicionamiento en motores generativos.</p>
+            <span class="update-badge">Última actualización: hoy, 14:32</span>
+          </div>
+        </div>
+
+        <div class="scores-grid">
+          <div class="score-card highlight">
+            <div class="score-label">Nosotros</div>
+            <div class="score-name" id="dash-myname">Bluease.io</div>
+            <div class="score-number">58<span style="font-size:16px;color:var(--text-muted)">/100</span></div>
+            <div class="score-bar-wrap"><div class="score-bar us" style="width:58%"></div></div>
+          </div>
+          <div class="score-card comp1">
+            <div class="score-label">Competidor 1</div>
+            <div class="score-name">EcoEvents Pro</div>
+            <div class="score-number">87<span style="font-size:16px;color:var(--text-muted)">/100</span></div>
+            <div class="score-bar-wrap"><div class="score-bar c1" style="width:87%"></div></div>
+          </div>
+          <div class="score-card comp2">
+            <div class="score-label">Competidor 2</div>
+            <div class="score-name">GreenMice</div>
+            <div class="score-number">71<span style="font-size:16px;color:var(--text-muted)">/100</span></div>
+            <div class="score-bar-wrap"><div class="score-bar c2" style="width:71%"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-pill">
+            <div class="stat-pill-val" style="color:var(--red)">−29</div>
+            <div class="stat-pill-lbl">pts vs. líder</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-val">4</div>
+            <div class="stat-pill-lbl">brechas críticas</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-val" style="color:var(--emerald)">+39</div>
+            <div class="stat-pill-lbl">pts potenciales</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-val">~18h</div>
+            <div class="stat-pill-lbl">esfuerzo estimado</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Brechas principales vs. competidores</div>
+          <div class="brechas-list">
+            <div class="brecha-item">
+              <div class="brecha-left">
+                <span class="brecha-icon fail">✕</span>
+                <span class="brecha-name">FAQ estructurada con 15+ preguntas</span>
+              </div>
+              <span class="brecha-pts alta">−10 pts</span>
+            </div>
+            <div class="brecha-item">
+              <div class="brecha-left">
+                <span class="brecha-icon fail">✕</span>
+                <span class="brecha-name">Presencia en ChatGPT / Perplexity</span>
+              </div>
+              <span class="brecha-pts alta">−15 pts</span>
+            </div>
+            <div class="brecha-item">
+              <div class="brecha-left">
+                <span class="brecha-icon fail">✕</span>
+                <span class="brecha-name">Glosario de términos técnicos</span>
+              </div>
+              <span class="brecha-pts alta">−8 pts</span>
+            </div>
+            <div class="brecha-item">
+              <div class="brecha-left">
+                <span class="brecha-icon warn">!</span>
+                <span class="brecha-name">Casos de uso con datos verificables</span>
+              </div>
+              <span class="brecha-pts media">−4 pts</span>
+            </div>
+            <div class="brecha-item">
+              <div class="brecha-left">
+                <span class="brecha-icon warn">!</span>
+                <span class="brecha-name">Alt text en todas las imágenes</span>
+              </div>
+              <span class="brecha-pts media">−2 pts</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            <span>Tabla comparativa completa</span>
+          </div>
+          <div class="table-wrap">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>Métrica GEO</th>
+                  <th style="text-align:center">Bluease</th>
+                  <th style="text-align:center">EcoEvents</th>
+                  <th style="text-align:center">GreenMice</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Blog activo</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+                <tr><td>H1/H2/H3 estructurado</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+                <tr><td>FAQ estructurada</td><td class="compare-cell cell-no">✕</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+                <tr><td>Aparece en ChatGPT</td><td class="compare-cell cell-partial">~</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-partial">~</td></tr>
+                <tr><td>Aparece en Perplexity</td><td class="compare-cell cell-no">✕</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-partial">~</td></tr>
+                <tr><td>Google AI Overview</td><td class="compare-cell cell-no">✕</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-no">✕</td></tr>
+                <tr><td>Casos de uso con datos</td><td class="compare-cell cell-partial">~</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-partial">~</td></tr>
+                <tr><td>Estadísticas propias</td><td class="compare-cell cell-partial">~</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-no">✕</td></tr>
+                <tr><td>Glosario técnico</td><td class="compare-cell cell-no">✕</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+                <tr><td>Alt text imágenes</td><td class="compare-cell cell-partial">~</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+                <tr><td>Schema markup</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-no">✕</td></tr>
+                <tr><td>Sección "Cómo funciona"</td><td class="compare-cell cell-no">✕</td><td class="compare-cell cell-ok">✓</td><td class="compare-cell cell-ok">✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dash-actions">
+          <button class="btn btn-secondary" onclick="goScreen(2)">← Anterior</button>
+          <button class="btn btn-ghost" onclick="exportPDF()">Exportar PDF</button>
+          <button class="btn btn-ghost" onclick="showToast('i','Dashboard actualizado')">Actualizar</button>
+          <button class="btn btn-primary" onclick="goScreen(4)">Ver plan de acción →</button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-4">
+        <div class="screen-header">
+          <h1>Plan de acción GEO</h1>
+          <p>Tareas priorizadas por impacto en el GEO Score. Haz clic en una tarea para marcarla como completada.</p>
+        </div>
+
+        <div class="priority-section">
+          <div class="priority-header">
+            <div class="priority-dot alta"></div>
+            <div class="priority-title">Alta prioridad — impacto inmediato</div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check" id="tc1">□</div>
+                <div class="task-title">Crear página FAQ con 15+ preguntas hiper-específicas sobre sostenibilidad en eventos</div>
+              </div>
+              <span class="task-impact">+10 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~4h de trabajo</span>
+              <span>Resp: Marina (contenidos)</span>
+              <span>Plazo: Semana 1</span>
+            </div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Publicar 3 artículos GEO con datos exclusivos Bluease orientados a consultas de ChatGPT y Perplexity</div>
+              </div>
+              <span class="task-impact">+15 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~6h por artículo</span>
+              <span>Resp: Equipo marketing</span>
+              <span>Plazo: Semanas 1–3</span>
+            </div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Crear glosario de términos técnicos: CSRD, GHG Protocol, ODS, ISO 20121, ESRS, Alcance 3</div>
+              </div>
+              <span class="task-impact">+8 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~3h</span>
+              <span>Resp: Marina + desarrollo</span>
+              <span>Plazo: Semana 1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="priority-section">
+          <div class="priority-header">
+            <div class="priority-dot media"></div>
+            <div class="priority-title">Media prioridad — mejora progresiva</div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Completar alt text en todas las imágenes del sitio con descripciones semánticas</div>
+              </div>
+              <span class="task-impact">+2 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~2h</span>
+              <span>Resp: Desarrollo</span>
+              <span>Plazo: Semana 2</span>
+            </div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Publicar 2 casos de uso con datos verificables: nombre de cliente, cifras de impacto, metodología</div>
+              </div>
+              <span class="task-impact">+4 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~3h por caso</span>
+              <span>Resp: Marketing + cliente</span>
+              <span>Plazo: Semana 2–3</span>
+            </div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Añadir sección "Cómo funciona" en la home con pasos numerados y accionables</div>
+              </div>
+              <span class="task-impact">+3 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~2h</span>
+              <span>Resp: Diseño + desarrollo</span>
+              <span>Plazo: Semana 2</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="priority-section">
+          <div class="priority-header">
+            <div class="priority-dot baja"></div>
+            <div class="priority-title">Baja prioridad — optimización continua</div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Publicar estadísticas propias trimestralmente: benchmarks de huella por sector, datos de plataforma</div>
+              </div>
+              <span class="task-impact">+5 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>Recurrente Q</span>
+              <span>Resp: Toda la empresa</span>
+              <span>Plazo: Inicio Q2</span>
+            </div>
+          </div>
+
+          <div class="task-card" onclick="toggleTask(this)">
+            <div class="task-top">
+              <div class="task-title-row">
+                <div class="task-check">□</div>
+                <div class="task-title">Implementar schema markup FAQ y HowTo en todas las páginas relevantes</div>
+              </div>
+              <span class="task-impact">+2 pts</span>
+            </div>
+            <div class="task-meta">
+              <span>~3h</span>
+              <span>Resp: Desarrollo</span>
+              <span>Plazo: Semana 4</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="plan-actions">
+          <button class="btn btn-secondary" onclick="goScreen(3)">← Volver al dashboard</button>
+          <button class="btn btn-ghost" onclick="regenPlan()">Regenerar plan</button>
+          <button class="btn btn-primary" onclick="exportPDF()">Exportar plan completo</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+  let currentScreen = 1;
+  let compRowCount = 2;
+  const MIN_COMPETIDORES = 3;
+  const MAX_COMPETIDORES = 8;
+
+  const SCREENS = {
+    1: { label: 'PASO 01', title: 'Configuración' },
+    2: { label: 'PASO 02', title: 'Análisis GEO' },
+    3: { label: 'PASO 03', title: 'Dashboard' },
+    4: { label: 'PASO 04', title: 'Plan de acción' },
+  };
+
+  // ── PERSISTENCIA CON localStorage ─────────────────────────────────────────
+  const STORAGE_KEY = 'bluease_geo_config_v1';
+
+  function saveConfig() {
+    const config = {
+      myName: document.getElementById('my-name')?.value || '',
+      myDomain: document.getElementById('my-domain')?.value || '',
+      mySector: document.getElementById('my-sector')?.value || '',
+      competitors: getCompetitorsFromTable()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  }
+
+  function loadConfig() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return false;
+
+    try {
+      const config = JSON.parse(saved);
+
+      if (config.myName) document.getElementById('my-name').value = config.myName;
+      if (config.myDomain) document.getElementById('my-domain').value = config.myDomain;
+      if (config.mySector) document.getElementById('my-sector').value = config.mySector;
+
+      // Cargar competidores
+      const tbody = document.getElementById('comp-body');
+      tbody.innerHTML = '';
+      compRowCount = 0;
+
+      if (config.competitors && config.competitors.length > 0) {
+        config.competitors.forEach((comp, idx) => {
+          compRowCount++;
+          const tr = document.createElement('tr');
+          const num = String(idx + 1).padStart(2, '0');
+          tr.innerHTML = `
+            <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px">${num}</td>
+            <td><input class="td-input" placeholder="Nombre competidor" value="${escapeHtml(comp.name || '')}"></td>
+            <td><input class="td-input" placeholder="dominio.com" value="${escapeHtml(comp.domain || '')}"></td>
+            <td><input class="td-input" placeholder="Sector" value="${escapeHtml(comp.sector || '')}"></td>
+            <td><button class="btn btn-danger" onclick="removeRow(this)">✕</button></td>
+          `;
+          tbody.appendChild(tr);
+          // Añadir listeners para guardar al editar
+          tr.querySelectorAll('.td-input').forEach(input => {
+            input.addEventListener('input', saveConfig);
+          });
+        });
+      }
+
+      updateCompetitorNumbers();
+      return true;
+    } catch (e) {
+      console.error('Error cargando configuración:', e);
+      return false;
+    }
+  }
+
+  function getCompetitorsFromTable() {
+    const rows = document.querySelectorAll('#comp-body tr');
+    const competitors = [];
+    rows.forEach(row => {
+      const inputs = row.querySelectorAll('.td-input');
+      if (inputs.length >= 3) {
+        competitors.push({
+          name: inputs[0].value.trim(),
+          domain: inputs[1].value.trim(),
+          sector: inputs[2].value.trim()
+        });
+      }
+    });
+    return competitors;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function validateCompetitors() {
+    const count = document.querySelectorAll('#comp-body tr').length;
+    if (count < MIN_COMPETIDORES) {
+      showToast('!', `Mínimo ${MIN_COMPETIDORES} competidores requeridos (actual: ${count})`);
+      return false;
+    }
+    if (count > MAX_COMPETIDORES) {
+      showToast('!', `Máximo ${MAX_COMPETIDORES} competidores permitidos (actual: ${count})`);
+      return false;
+    }
+    // Validar campos requeridos
+    const rows = document.querySelectorAll('#comp-body tr');
+    for (let i = 0; i < rows.length; i++) {
+      const inputs = rows[i].querySelectorAll('.td-input');
+      const name = inputs[0].value.trim();
+      const domain = inputs[1].value.trim();
+      if (!name || !domain) {
+        showToast('!', `Competidor ${i + 1}: nombre y dominio son obligatorios`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateCompetitorNumbers() {
+    const rows = document.querySelectorAll('#comp-body tr');
+    const count = rows.length;
+
+    rows.forEach((row, idx) => {
+      const numCell = row.querySelector('td:first-child');
+      if (numCell) {
+        numCell.textContent = String(idx + 1).padStart(2, '0');
+      }
+    });
+
+    // Actualizar contador visual
+    const countEl = document.getElementById('comp-count');
+    if (countEl) {
+      countEl.textContent = count;
+      if (count < MIN_COMPETIDORES) {
+        countEl.style.color = 'var(--red)';
+      } else if (count >= MAX_COMPETIDORES) {
+        countEl.style.color = 'var(--amber)';
+      } else {
+        countEl.style.color = 'var(--emerald)';
+      }
+    }
+
+    // Actualizar tabs de competidores en pantalla 2
+    updateCompTabs();
+  }
+
+  function updateCompTabs() {
+    const tabsContainer = document.getElementById('comp-tabs');
+    if (!tabsContainer) return;
+
+    const competitors = getCompetitorsFromTable();
+    const myName = document.getElementById('my-name').value || 'Mi empresa';
+
+    let html = `<div class="comp-tab active" onclick="selectComp(this, 0)">Nosotros</div>`;
+
+    competitors.forEach((comp, idx) => {
+      const name = comp.name || `Competidor ${idx + 1}`;
+      const active = idx === 0 ? 'active' : '';
+      html += `<div class="comp-tab" onclick="selectComp(this, ${idx + 1})">${escapeHtml(name)}</div>`;
+    });
+
+    tabsContainer.innerHTML = html;
+  }
+
+  function goScreen(n) {
+    // Validar antes de ir a Análisis (pantalla 2)
+    if (n === 2 && !validateCompetitors()) {
+      return;
+    }
+
+    // Guardar configuración al navegar
+    saveConfig();
+
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-step').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.chip').forEach((c, i) => {
+      c.className = 'chip';
+      if (i + 1 < n) c.classList.add('done');
+      else if (i + 1 === n) c.classList.add('active');
+    });
+
+    document.getElementById('screen-' + n).classList.add('active');
+    document.getElementById('nav-' + n).classList.add('active');
+
+    // Mark previous navs as done
+    for (let i = 1; i < n; i++) {
+      document.getElementById('nav-' + i).classList.add('done');
+    }
+
+    document.getElementById('topbar-screen').textContent = SCREENS[n].label;
+    document.getElementById('topbar-title').textContent = SCREENS[n].title;
+    currentScreen = n;
+
+    // Sync company name to dashboard
+    const myName = document.getElementById('my-name').value || 'Bluease.io';
+    document.getElementById('dash-myname').textContent = myName;
+
+    // Actualizar tabs de competidores al ir a pantalla 2
+    if (n === 2) {
+      updateCompTabs();
+    }
+  }
+
+  // ── CONFIGURACIÓN ──────────────────────────────────────────────────────────
+  function addCompetitor() {
+    const currentCount = document.querySelectorAll('#comp-body tr').length;
+    if (currentCount >= MAX_COMPETIDORES) {
+      showToast('!', `Máximo ${MAX_COMPETIDORES} competidores permitidos`);
+      return;
+    }
+
+    compRowCount++;
+    const tbody = document.getElementById('comp-body');
+    const tr = document.createElement('tr');
+    const num = String(currentCount + 1).padStart(2, '0');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px">${num}</td>
+      <td><input class="td-input" placeholder="Nombre competidor"></td>
+      <td><input class="td-input" placeholder="dominio.com"></td>
+      <td><input class="td-input" placeholder="Sector"></td>
+      <td><button class="btn btn-danger" onclick="removeRow(this)">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+    tr.style.animation = 'fadeSlide 0.2s ease';
+
+    // Añadir listeners para guardar al editar
+    tr.querySelectorAll('.td-input').forEach(input => {
+      input.addEventListener('input', saveConfig);
+    });
+
+    updateCompetitorNumbers();
+    saveConfig();
+  }
+
+  function removeRow(btn) {
+    const currentCount = document.querySelectorAll('#comp-body tr').length;
+    if (currentCount <= MIN_COMPETIDORES) {
+      showToast('!', `Mínimo ${MIN_COMPETIDORES} competidores requeridos`);
+      return;
+    }
+
+    const row = btn.closest('tr');
+    row.style.opacity = '0';
+    row.style.transition = 'opacity 0.2s';
+    setTimeout(() => {
+      row.remove();
+      updateCompetitorNumbers();
+      saveConfig();
+    }, 200);
+  }
+
+  // ── SCRAPING BÁSICO ──────────────────────────────────────────────────────────
+  // Función principal que analiza una URL y detecta señales GEO
+  async function analizarWeb(url) {
+    const resultado = {
+      url: url,
+      tieneFaq: false,
+      tieneBlog: false,
+      tieneEncabezados: false,
+      h1Count: 0,
+      h2Count: 0,
+      h3Count: 0,
+      error: null
+    };
+
+    try {
+      // NOTA: En un entorno real, esto requiere un proxy/backend para evitar CORS
+      // Para demostración, simulamos el scraping con datos mock
+      const html = await fetchHtmlConProxy(url);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // Detectar FAQ
+      resultado.tieneFaq = detectarFaq(doc);
+
+      // Detectar Blog activo
+      resultado.tieneBlog = detectarBlog(doc);
+
+      // Detectar Encabezados H1/H2/H3
+      const encabezados = detectarEncabezados(doc);
+      resultado.h1Count = encabezados.h1;
+      resultado.h2Count = encabezados.h2;
+      resultado.h3Count = encabezados.h3;
+      resultado.tieneEncabezados = encabezados.h1 > 0 && encabezados.h2 > 0;
+
+    } catch (error) {
+      resultado.error = error.message;
+      console.error(`Error analizando ${url}:`, error);
+    }
+
+    return resultado;
+  }
+
+  // Fetch con proxy para evitar CORS (en producción usar backend propio)
+  async function fetchHtmlConProxy(url) {
+    // En producción: usar un endpoint propio que haga el fetch server-side
+    // Ejemplo: fetch(`/api/scrape?url=${encodeURIComponent(url)}`)
+
+    // Para demo: simulamos la respuesta
+    return await simularScraping(url);
+  }
+
+  // Simulación de scraping para demostración (eliminar en producción)
+  async function simularScraping(url) {
+    // Simulamos delay de red
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+
+    // Respuestas simuladas basadas en el dominio
+    const respuestas = {
+      'bluease.io': `<html><head><title>Bluease</title></head><body>
+        <h1>Plataforma de sostenibilidad</h1>
+        <h2>Soluciones para eventos</h2>
+        <h3>Medición de huella de carbono</h3>
+        <article><time>2024-01-15</time>Nuevo artículo</article>
+        <article><time>2024-02-20</time>Otro artículo</article>
+      </body></html>`,
+      'ecoevents.io': `<html><head><title>EcoEvents</title></head><body>
+        <h1>EcoEvents Pro</h1>
+        <h2>Sostenibilidad en eventos</h2>
+        <h3>Casos de éxito</h3>
+        <div class="faq" itemscope itemtype="https://schema.org/FAQPage">
+          <div itemprop="mainEntity">Pregunta 1</div>
+        </div>
+        <article><time>2024-03-01</time>Blog post</article>
+      </body></html>`,
+      'greenmice.com': `<html><head><title>GreenMice</title></head><body>
+        <h1>GreenMice</h1>
+        <h2>MICE sostenible</h2>
+        <h3>Servicios</h3>
+        <section id="faq"><h3>Preguntas frecuentes</h3></section>
+        <article><time>2024-02-10</time>Noticia</article>
+      </body></html>`
+    };
+
+    for (const [domain, html] of Object.entries(respuestas)) {
+      if (url.includes(domain)) return html;
+    }
+
+    // Default
+    return `<html><body><h1>Default</h1><h2>Page</h2></body></html>`;
+  }
+
+  // Detecta si la página tiene FAQ estructurada
+  function detectarFaq(doc) {
+    // Busca schema markup FAQPage
+    const schemaFaq = doc.querySelector('[itemtype*="FAQPage"]');
+    if (schemaFaq) return true;
+
+    // Busca elementos con IDs o clases comunes de FAQ
+    const faqElements = doc.querySelector('#faq, .faq, #faq-page, .faq-page, #preguntas, .preguntas, #ayuda, .ayuda');
+    if (faqElements) return true;
+
+    // Busca enlaces a página FAQ
+    const faqLinks = Array.from(doc.querySelectorAll('a')).some(a =>
+      a.href.toLowerCase().includes('faq') ||
+      a.textContent.toLowerCase().includes('faq') ||
+      a.textContent.toLowerCase().includes('preguntas frecuentes')
+    );
+    if (faqLinks) return true;
+
+    return false;
+  }
+
+  // Detecta si la página tiene blog activo
+  function detectarBlog(doc) {
+    // Busca artículos con fechas recientes
+    const articles = doc.querySelectorAll('article, .post, .blog-post, .entry');
+    if (articles.length === 0) return false;
+
+    // Busca elementos de fecha
+    const timeElements = doc.querySelectorAll('time, .date, .post-date, .published');
+    if (timeElements.length > 0) return true;
+
+    // Busca sección blog
+    const blogSection = doc.querySelector('section[id*="blog"], section[class*="blog"], #blog, .blog');
+    if (blogSection && articles.length > 0) return true;
+
+    return false;
+  }
+
+  // Detecta y cuenta encabezados H1, H2, H3
+  function detectarEncabezados(doc) {
+    const h1 = doc.querySelectorAll('h1').length;
+    const h2 = doc.querySelectorAll('h2').length;
+    const h3 = doc.querySelectorAll('h3').length;
+    return { h1, h2, h3 };
+  }
+
+  // Ejecuta el scraping para todas las URLs y actualiza la UI
+  async function ejecutarScraping() {
+    const myDomain = document.getElementById('my-domain').value.trim();
+    const competitors = getCompetitorsFromTable();
+
+    showToast('i', 'Analizando webs...');
+
+    // Analizar mi empresa
+    if (myDomain) {
+      const resultado = await analizarWeb(myDomain);
+      window.scrapingResults = { my: resultado, competitors: [] };
+      actualizarUIAnalisis('my', resultado);
+    }
+
+    // Analizar competidores
+    for (let i = 0; i < competitors.length; i++) {
+      const comp = competitors[i];
+      if (comp.domain) {
+        const resultado = await analizarWeb(comp.domain);
+        window.scrapingResults.competitors.push(resultado);
+        actualizarUIAnalisis('comp', resultado, i);
+      }
+    }
+
+    showToast('✓', 'Análisis completado');
+  }
+
+  // Actualiza la UI con los resultados del scraping
+  function actualizarUIAnalisis(tipo, resultado, idx = 0) {
+    const autoChecks = document.getElementById('auto-checks');
+    if (!autoChecks) return;
+
+    // Solo actualizamos para el competidor actualmente visible
+    const compTabActive = document.querySelector('.comp-tab.active');
+    if (!compTabActive) return;
+
+    const compIdx = Array.from(compTabActive.parentElement.children).indexOf(compTabActive);
+    const expectedIdx = tipo === 'my' ? 0 : idx + 1;
+    if (compIdx !== expectedIdx) return;
+
+    let html = '';
+
+    // Blog
+    html += `<div class="check-item">
+      <span class="check-icon ${resultado.tieneBlog ? 'ok' : 'fail'}">${resultado.tieneBlog ? '✓' : '✕'}</span>
+      <span class="check-text ${!resultado.tieneBlog ? 'fail' : ''}">${resultado.tieneBlog ? 'Tiene blog activo' : 'No tiene blog activo'}</span>
+    </div>`;
+
+    // Encabezados
+    const encabezadosOk = resultado.tieneEncabezados;
+    html += `<div class="check-item">
+      <span class="check-icon ${encabezadosOk ? 'ok' : 'fail'}">${encabezadosOk ? '✓' : '✕'}</span>
+      <span class="check-text ${!encabezadosOk ? 'fail' : ''}">${encabezadosOk
+        ? `Usa encabezados H1/H2/H3 estructurados (${resultado.h1} H1, ${resultado.h2} H2, ${resultado.h3} H3)`
+        : 'No usa encabezados estructurados'}</span>
+    </div>`;
+
+    // FAQ
+    html += `<div class="check-item">
+      <span class="check-icon ${resultado.tieneFaq ? 'ok' : 'fail'}">${resultado.tieneFaq ? '✓' : '✕'}</span>
+      <span class="check-text ${!resultado.tieneFaq ? 'fail' : ''}">${resultado.tieneFaq
+        ? 'Tiene página FAQ estructurada'
+        : 'No tiene página FAQ estructurada'}</span>
+    </div>`;
+
+    autoChecks.innerHTML = html;
+  }
+
+  function startAnalysis() {
+    const myName = document.getElementById('my-name').value.trim();
+    if (!myName) { showToast('!', 'Introduce el nombre de tu empresa'); return; }
+
+    // Validar competidores antes de iniciar
+    if (!validateCompetitors()) {
+      return;
+    }
+
+    saveConfig();
+    showToast('i', 'Iniciando análisis GEO...');
+
+    // Ejecutar scraping primero
+    ejecutarScraping().then(() => {
+      setTimeout(() => {
+        goScreen(2);
+        showToast('✓', 'Análisis cargado — completa las métricas manuales');
+      }, 800);
+    });
+  }
+
+  // ── ANÁLISIS ───────────────────────────────────────────────────────────────
+  function selectComp(tab, idx) {
+    document.querySelectorAll('.comp-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    const competitors = getCompetitorsFromTable();
+    let name;
+    if (idx === 0) {
+      name = document.getElementById('my-name').value || 'Mi empresa';
+    } else {
+      name = competitors[idx - 1]?.name || `Competidor ${idx}`;
+    }
+    document.getElementById('comp-current-name').textContent = name;
+
+    // Simulate different progress per competitor
+    const prog = [66, 83, 50, 45, 70, 60, 55, 40, 75];
+    const met = [8, 10, 6, 5, 9, 7, 8, 4, 11];
+    document.getElementById('prog-fill').style.width = prog[idx] + '%';
+    document.getElementById('prog-label').textContent = met[idx] + ' / 12 métricas';
+  }
+
+  function selectOpt(btn, q, val) {
+    const group = btn.closest('[data-q]');
+    group.querySelectorAll('.btn-opt').forEach(b => {
+      b.className = 'btn-opt';
+    });
+    if (val === 'si') btn.classList.add('selected');
+    else if (val === 'parcial') btn.classList.add('selected-partial');
+    else btn.classList.add('selected-no');
+  }
+
+  // ── DASHBOARD ─────────────────────────────────────────────────────────────
+  function exportPDF() {
+    showToast('i', 'Preparando exportación... (función en desarrollo)');
+  }
+
+  // ── PLAN DE ACCIÓN ─────────────────────────────────────────────────────────
+  function toggleTask(card) {
+    const check = card.querySelector('.task-check');
+    const isDone = card.classList.contains('done-task');
+    if (isDone) {
+      card.classList.remove('done-task');
+      check.classList.remove('checked');
+      check.textContent = '□';
+    } else {
+      card.classList.add('done-task');
+      check.classList.add('checked');
+      check.textContent = '✓';
+      showToast('✓', 'Tarea marcada como completada');
+    }
+  }
+
+  function regenPlan() {
+    showToast('i', 'Plan regenerado con los datos actuales');
+  }
+
+  // ── TOAST ─────────────────────────────────────────────────────────────────
+  function showToast(icon, msg, dur = 3500) {
+    const c = document.getElementById('toasts');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<span class="toast-icon">${icon}</span><span>${msg}</span>`;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, dur);
+  }
+
+  // ── INICIALIZACIÓN ────────────────────────────────────────────────────────
+  function init() {
+    // Cargar configuración guardada
+    const loaded = loadConfig();
+    if (loaded) {
+      showToast('✓', 'Configuración cargada de la sesión anterior');
+    }
+
+    // Añadir listeners para autoguardado en campos de empresa
+    ['my-name', 'my-domain', 'my-sector'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', saveConfig);
+        el.addEventListener('change', saveConfig);
+      }
+    });
+
+    // Añadir listeners para autoguardado en competidores existentes
+    document.querySelectorAll('#comp-body .td-input').forEach(input => {
+      input.addEventListener('input', saveConfig);
+    });
+
+    goScreen(1);
+  }
+
+  // Init
+  init();
+</script>
+</body>
+</html>
