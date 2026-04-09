@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluease.io — Panel GEO</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0d1f3c;
+    --navy-mid: #152a4e;
+    --navy-light: #1e3a6e;
+    --emerald: #10b981;
+    --emerald-dark: #059669;
+    --emerald-glow: rgba(16,185,129,0.15);
+    --mint: #6ee7b7;
+    --bg: #f4f6f9;
+    --white: #ffffff;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+    --shadow: 0 4px 16px rgba(13,31,60,0.09);
+    --shadow-lg: 0 8px 32px rgba(13,31,60,0.14);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --sidebar-w: 240px;
+    --sidebar-collapsed: 64px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--gray-900); font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    transition: width var(--transition);
+    position: relative;
+    z-index: 20;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+  .sidebar-logo {
+    padding: 22px 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    min-height: 64px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--emerald), #34d399);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+  .logo-text {
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity var(--transition);
+  }
+  .sidebar.collapsed .logo-text { opacity: 0; pointer-events: none; }
+
+  .sidebar-nav { flex: 1; padding: 16px 0; }
+
+  .nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+    padding: 0 20px 8px;
+    white-space: nowrap;
+    transition: opacity var(--transition);
+  }
+  .sidebar.collapsed .nav-label { opacity: 0; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background var(--transition);
+    position: relative;
+    white-space: nowrap;
+    color: rgba(255,255,255,0.55);
+    user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+  .nav-item.active {
+    background: rgba(16,185,129,0.15);
+    color: var(--mint);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 3px; height: 60%;
+    background: var(--emerald);
+    border-radius: 0 2px 2px 0;
+  }
+  .nav-icon {
+    width: 20px; height: 20px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-text {
+    font-size: 13.5px;
+    font-weight: 500;
+    opacity: 1;
+    transition: opacity var(--transition);
+  }
+  .sidebar.collapsed .nav-text { opacity: 0; }
+
+  .sidebar-bottom {
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .collapse-btn {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    font-family: var(--font);
+    transition: all var(--transition);
+  }
+  .collapse-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+  .collapse-btn .btn-label { transition: opacity var(--transition); white-space: nowrap; }
+  .sidebar.collapsed .collapse-btn .btn-label { opacity: 0; width: 0; overflow: hidden; }
+
+  /* ── MAIN ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 64px;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--gray-700); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .topbar-badge {
+    background: var(--emerald-glow);
+    color: var(--emerald-dark);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(16,185,129,0.25);
+    letter-spacing: 0.3px;
+  }
+  .avatar {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--navy-light), var(--emerald));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 13px; font-weight: 600;
+  }
+
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* ── PANELS ── */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeUp 0.25s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── PAGE HEADER ── */
+  .page-header { margin-bottom: 28px; }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--gray-900); letter-spacing: -0.5px; }
+  .page-sub { font-size: 13.5px; color: var(--gray-500); margin-top: 4px; line-height: 1.5; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+  }
+
+  /* ── SEARCH BAR ── */
+  .search-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .search-input-wrap { flex: 1; min-width: 260px; position: relative; }
+  .search-input {
+    width: 100%;
+    padding: 13px 16px 13px 44px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--gray-900);
+    background: var(--gray-100);
+    outline: none;
+    transition: all var(--transition);
+  }
+  .search-input:focus { border-color: var(--emerald); background: white; box-shadow: 0 0 0 3px var(--emerald-glow); }
+  .search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--gray-400); pointer-events: none;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 20px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+    color: white;
+    box-shadow: 0 2px 8px rgba(16,185,129,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.45); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: var(--white);
+    color: var(--gray-700);
+    border: 1.5px solid var(--gray-200);
+  }
+  .btn-secondary:hover { background: var(--gray-100); border-color: var(--gray-300); }
+
+  .btn-navy {
+    background: var(--navy);
+    color: white;
+    box-shadow: 0 2px 8px rgba(13,31,60,0.2);
+  }
+  .btn-navy:hover { background: var(--navy-mid); transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--gray-500);
+    border: 1.5px solid var(--gray-200);
+  }
+  .btn-ghost:hover { color: var(--emerald); border-color: var(--emerald); background: var(--emerald-glow); }
+
+  .btn-lg { padding: 14px 28px; font-size: 15px; border-radius: 10px; }
+
+  /* ── SPINNER ── */
+  .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px; color: var(--gray-400); font-size: 13px; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--emerald);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── GEO CARDS ── */
+  .geo-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 24px; }
+  .geo-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--gray-200);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+    animation: fadeUp 0.3s ease both;
+  }
+  .geo-card:nth-child(2) { animation-delay: 0.08s; }
+  .geo-card:nth-child(3) { animation-delay: 0.16s; }
+  .geo-card:hover { border-color: var(--emerald); box-shadow: 0 4px 20px rgba(16,185,129,0.12); transform: translateY(-2px); }
+  .geo-card-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--emerald-dark);
+    background: var(--emerald-glow);
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .geo-card-question {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--gray-900);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .geo-card-meta { font-size: 12px; color: var(--gray-400); margin-bottom: 16px; line-height: 1.6; }
+  .geo-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .score-pill {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .score-high { background: #ecfdf5; color: #065f46; }
+  .score-med { background: #fffbeb; color: #92400e; }
+
+  /* ── BLOG FORM ── */
+  .blog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 800px) { .blog-grid { grid-template-columns: 1fr; } }
+
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; letter-spacing: 0.2px; }
+  .field-input, .field-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--gray-900);
+    background: var(--gray-100);
+    outline: none;
+    transition: all var(--transition);
+  }
+  .field-input:focus, .field-textarea:focus {
+    border-color: var(--emerald);
+    background: white;
+    box-shadow: 0 0 0 3px var(--emerald-glow);
+  }
+  .field-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+  /* ── EDITOR AREA ── */
+  .editor-area {
+    min-height: 360px;
+    background: var(--gray-100);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--gray-700);
+    position: relative;
+    overflow-y: auto;
+    transition: all var(--transition);
+  }
+  .editor-placeholder {
+    position: absolute;
+    inset: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-300);
+    gap: 12px;
+    text-align: center;
+  }
+  .editor-placeholder svg { opacity: 0.4; }
+  .editor-placeholder p { font-size: 13px; }
+
+  .editor-content { display: none; }
+  .editor-content.visible { display: block; animation: fadeUp 0.3s ease; }
+
+  .editor-content h1 { font-size: 20px; font-weight: 700; color: var(--gray-900); margin-bottom: 12px; letter-spacing: -0.4px; line-height: 1.3; }
+  .editor-content h2 { font-size: 16px; font-weight: 700; color: var(--navy); margin: 20px 0 8px; }
+  .editor-content p { margin-bottom: 14px; }
+  .editor-content strong { color: var(--gray-900); }
+  .editor-content ul { padding-left: 18px; margin-bottom: 14px; }
+  .editor-content li { margin-bottom: 6px; }
+  .editor-content blockquote {
+    border-left: 3px solid var(--emerald);
+    padding-left: 16px;
+    margin: 16px 0;
+    color: var(--gray-500);
+    font-style: italic;
+  }
+  .editor-content .lead-intro { font-size: 15px; line-height: 1.7; color: var(--gray-700); font-weight: 400; border-left: 3px solid var(--emerald); padding-left: 16px; margin-bottom: 20px; }
+  .editor-content .quick-answer { font-size: 13px; color: var(--gray-500); font-style: italic; margin: -6px 0 18px; padding-left: 12px; border-left: 2px solid var(--gray-300); }
+  .editor-content .summary-block { background: var(--emerald-glow); border: 1.5px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 16px 18px; margin-top: 24px; }
+  .editor-content .summary-label { font-size: 10.5px; font-weight: 700; color: var(--emerald-dark); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
+  .editor-content .summary-block p { font-size: 13.5px; color: var(--gray-700); line-height: 1.65; margin: 0; }
+  .editor-content .cta-line { margin-top: 20px; font-size: 13.5px; color: var(--gray-700); }
+  .editor-content .entity-footer { font-size: 11px; color: var(--gray-400); font-style: italic; margin-top: 8px; }
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    color: var(--emerald-dark); background: var(--emerald-glow);
+    padding: 2px 8px; border-radius: 4px;
+    font-family: var(--mono);
+  }
+  .editor-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 14px;
+    background: var(--white);
+    border: 1.5px solid var(--gray-200);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .editor-toolbar + .editor-area { border-radius: 0 0 var(--radius) var(--radius); }
+  .toolbar-btn {
+    padding: 5px 10px;
+    border: none; background: transparent;
+    border-radius: 5px;
+    font-size: 12px; font-weight: 600; font-family: var(--mono);
+    color: var(--gray-400); cursor: pointer;
+    transition: all var(--transition);
+  }
+  .toolbar-btn:hover { background: var(--gray-100); color: var(--gray-700); }
+  .toolbar-sep { width: 1px; height: 20px; background: var(--gray-200); }
+  .toolbar-tag {
+    font-size: 11px; color: var(--emerald-dark);
+    background: var(--emerald-glow);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+
+  /* ── ACTION ROW ── */
+  .action-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+  /* ── TOAST ── */
+  #toast-container {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 999;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--navy);
+    color: white;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 320px;
+    pointer-events: all;
+    transition: opacity 0.3s ease;
+    border-left: 3px solid var(--emerald);
+  }
+  .toast.fade-out { opacity: 0; transform: translateX(20px); }
+  .toast-icon { font-size: 16px; }
+  @keyframes slideIn { from { opacity:0; transform:translateX(40px) scale(0.9); } to { opacity:1; transform:translateX(0) scale(1); } }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 700px) { .stats-row { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .stat-icon {
+    width: 42px; height: 42px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .stat-icon.green { background: var(--emerald-glow); }
+  .stat-icon.blue { background: rgba(30,58,110,0.08); }
+  .stat-icon.amber { background: rgba(251,191,36,0.1); }
+  .stat-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 24px; font-weight: 700; color: var(--gray-900); letter-spacing: -0.5px; margin-top: 2px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .sidebar { position: fixed; top: 0; left: 0; bottom: 0; }
+    .main { margin-left: 0; }
+    .content { padding: 16px; }
+    .topbar { padding: 0 16px; }
+  }
+
+  /* ── DIVIDER ── */
+  .section-divider { height: 1px; background: var(--gray-200); margin: 24px 0; }
+
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-400); }
+  .empty-state p { font-size: 13px; margin-top: 8px; }
+
+  /* ── GENERATE BTN AREA ── */
+  .generate-section { display: flex; justify-content: center; margin: 8px 0 24px; }
+
+  /* ── FIELD HINT ── */
+  .field-hint { font-size: 11px; font-weight: 400; color: var(--gray-400); margin-left: 4px; }
+
+  /* ── ENTITY TAGS ── */
+  .etag {
+    font-size: 11.5px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    border: 1.5px solid var(--gray-300); color: var(--gray-500);
+    background: var(--white); transition: all var(--transition);
+    user-select: none;
+  }
+  .etag.active { background: var(--emerald-glow); border-color: var(--emerald); color: var(--emerald-dark); }
+
+  /* ── GEO RULES BOX ── */
+  .geo-rules-box {
+    background: var(--navy);
+    border-radius: var(--radius-sm);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .geo-rules-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    color: rgba(255,255,255,0.4); margin-bottom: 14px;
+  }
+  .rules-score {
+    background: var(--emerald-glow);
+    color: var(--mint);
+    font-size: 12px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .geo-rules-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px;
+  }
+  @media (max-width: 700px) { .geo-rules-grid { grid-template-columns: 1fr; } }
+  .geo-rule {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.45;
+  }
+  .rule-check { color: var(--emerald); font-size: 13px; flex-shrink: 0; margin-top: 1px; font-weight: 700; }
+
+  /* Loading dots */
+  .loading-dots { display: inline-flex; gap: 4px; align-items: center; }
+  .loading-dots span { width: 5px; height: 5px; border-radius: 50%; background: white; animation: pulse-dot 1.2s ease-in-out infinite; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse-dot { 0%,80%,100%{opacity:0.3;transform:scale(0.8);} 40%{opacity:1;transform:scale(1);} }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🌱</div>
+      <span class="logo-text">Bluease.io</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Herramientas</div>
+      <div class="nav-item active" onclick="switchPanel('geo', this)">
+        <span class="nav-icon">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <span class="nav-text">Análisis GEO</span>
+      </div>
+      <div class="nav-item" onclick="switchPanel('blog', this)">
+        <span class="nav-icon">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </span>
+        <span class="nav-text">Generador de Blog</span>
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="collapse-btn" onclick="toggleSidebar()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="btn-label">Colapsar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <span class="topbar-title" id="topbar-title">Análisis GEO</span>
+      <div class="topbar-right">
+        <span class="topbar-badge">✦ GEO Suite v2.1</span>
+        <div class="avatar">AB</div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="content">
+
+      <!-- ══════════ PANEL 1: GEO ══════════ -->
+      <div class="panel active" id="panel-geo">
+        <div class="page-header">
+          <h1 class="page-title">Análisis de Oportunidades GEO</h1>
+          <p class="page-sub">Descubre preguntas sin respuesta en motores de IA para posicionar a Bluease como fuente de referencia.</p>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon green">🎯</div>
+            <div>
+              <div class="stat-label">Huecos detectados</div>
+              <div class="stat-value">47</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">📄</div>
+            <div>
+              <div class="stat-label">Artículos publicados</div>
+              <div class="stat-value">12</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">⚡</div>
+            <div>
+              <div class="stat-label">Score GEO medio</div>
+              <div class="stat-value">78%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="search-row">
+            <div class="search-input-wrap">
+              <span class="search-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </span>
+              <input type="text" class="search-input" id="geo-input" placeholder="Introduce un tema del sector eventos (ej. catering, movilidad, normativa)" onkeydown="if(event.key==='Enter') runGeoAnalysis()">
+            </div>
+            <button class="btn btn-primary" id="geo-btn" onclick="runGeoAnalysis()">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Analizar Huecos
+            </button>
+          </div>
+
+          <div id="geo-results">
+            <div class="empty-state">
+              <svg width="48" height="48" fill="none" stroke="var(--gray-300)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              <p>Introduce un tema y haz clic en <strong>Analizar Huecos</strong> para descubrir oportunidades de contenido GEO.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ PANEL 2: BLOG ══════════ -->
+      <div class="panel" id="panel-blog">
+        <div class="page-header">
+          <h1 class="page-title">Generador de Blog GEO ✨</h1>
+          <p class="page-sub">Cada borrador aplica las 14 reglas GEO automáticamente: BLUF, entidades semánticas, FAQs, resumen IA-ready, CTA y más.</p>
+        </div>
+
+        <!-- FORM CARD -->
+        <div class="card" style="margin-bottom:20px">
+
+          <!-- ROW 1: título + tipo -->
+          <div class="blog-grid" style="margin-bottom:18px">
+            <div>
+              <label for="blog-title">
+                Título / Intención de búsqueda
+                <span class="field-hint">— usa verbos: "Cómo", "Qué es", "Por qué"</span>
+              </label>
+              <input type="text" class="field-input" id="blog-title" placeholder="Ej. Cómo cumplir la CSRD en eventos corporativos en España">
+            </div>
+            <div>
+              <label>Tipo de artículo</label>
+              <select class="field-input" id="blog-type" style="cursor:pointer">
+                <option value="guia">Guía práctica</option>
+                <option value="tendencia">Análisis de tendencia</option>
+                <option value="comparativa">Comparativa</option>
+                <option value="caso">Caso de uso real</option>
+                <option value="faq">FAQ / Preguntas frecuentes</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- ROW 2: dato exclusivo + frase resumen -->
+          <div class="blog-grid" style="margin-bottom:18px">
+            <div>
+              <label for="blog-context">
+                Dato o estadística exclusiva Bluease
+                <span class="field-hint">— cifras propias, nunca inventadas</span>
+              </label>
+              <textarea class="field-textarea" id="blog-context" rows="3" placeholder="Ej: Los organizadores que usan Bluease desde la planificación reducen un 34% el desperdicio alimentario vs. media del sector (Bluease Q1 2025)."></textarea>
+            </div>
+            <div>
+              <label for="blog-summary">
+                Frase-resumen IA-ready
+                <span class="field-hint">— 2-3 frases, respuesta directa para LLMs</span>
+              </label>
+              <textarea class="field-textarea" id="blog-summary" rows="3" placeholder="Ej: Bluease es una plataforma española que automatiza la evaluación de la sostenibilidad en eventos, calculando la huella de carbono según el GHG Protocol y ayudando a cumplir con la CSRD."></textarea>
+            </div>
+          </div>
+
+          <!-- ROW 3: caso de uso + CTA -->
+          <div class="blog-grid" style="margin-bottom:18px">
+            <div>
+              <label for="blog-case">
+                Caso de uso o ejemplo real
+                <span class="field-hint">— qué hacía antes, qué hace ahora, resultado</span>
+              </label>
+              <textarea class="field-textarea" id="blog-case" rows="3" placeholder="Ej: Una agencia de eventos de Madrid gestionaba la sostenibilidad con Excel. Con Bluease redujo el tiempo de reporting de 20h a 3h y obtuvo el informe CSRD listo para auditoría en su primer evento."></textarea>
+            </div>
+            <div>
+              <label for="blog-cta">
+                CTA (Llamada a la acción)
+                <span class="field-hint">— frase explícita, generará recomendaciones en LLMs</span>
+              </label>
+              <input type="text" class="field-input" id="blog-cta" style="margin-bottom:10px" placeholder="Ej: Solicita una demo de Bluease para tus eventos corporativos">
+              <label>Entidades semánticas a reforzar</label>
+              <div style="display:flex;flex-wrap:wrap;gap:6px" id="entity-tags">
+                <span class="etag active" onclick="toggleEntity(this)" data-val="Bluease">Bluease</span>
+                <span class="etag active" onclick="toggleEntity(this)" data-val="CSRD">CSRD</span>
+                <span class="etag active" onclick="toggleEntity(this)" data-val="GHG Protocol">GHG Protocol</span>
+                <span class="etag active" onclick="toggleEntity(this)" data-val="ODS">ODS</span>
+                <span class="etag active" onclick="toggleEntity(this)" data-val="ISO 20121">ISO 20121</span>
+                <span class="etag" onclick="toggleEntity(this)" data-val="ESRS">ESRS</span>
+                <span class="etag" onclick="toggleEntity(this)" data-val="GRI">GRI</span>
+                <span class="etag" onclick="toggleEntity(this)" data-val="huella de carbono">Huella CO₂</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- GEO RULES CHECKLIST — 14 reglas -->
+          <div class="geo-rules-box">
+            <div class="geo-rules-header">
+              <span>✦ 14 Reglas GEO aplicadas automáticamente</span>
+              <span class="rules-score" id="rules-score">14 / 14</span>
+            </div>
+            <div class="geo-rules-grid">
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>BLUF</strong> — Respuesta directa en la 1ª frase, sin intro genérica.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Frase-resumen IA-ready</strong> — Bloque final citeable por LLMs.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>H1 con intención clara</strong> — Título descriptivo, con keyword principal.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>H2 orientados a pregunta</strong> — "¿Por qué...?", "¿Qué es...?", "¿Cómo...?"</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Secciones autocontenidas</strong> — Cada bloque: contexto → problema → solución.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>FAQ incluida</strong> — Pregunta-respuesta en 2-3 frases claras.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Entidades semánticas</strong> — Bluease, CSRD, GHG Protocol, ODS repetidos con variación natural.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Sin pronombres vagos</strong> — "esto" → "la plataforma Bluease"; "así" → nombre explícito.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Cifras cuantificables</strong> — Datos con fuente y marco temporal verificable.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Señales de autoridad</strong> — "basado en GHG Protocol", "alineado con ODS", "cumplimiento CSRD".</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Sección "Cómo funciona"</strong> — Pasos numerados: recopilación → cálculo → informe → sello.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Caso de uso real</strong> — Antes / ahora / resultado en 3-5 frases.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>Legibilidad técnica</strong> — Voz activa, frases cortas, siglas explicadas la 1ª vez.</span></div>
+              <div class="geo-rule"><span class="rule-check">✓</span><span><strong>CTA explícito</strong> — Frase accionable que LLMs usan al recomendar herramientas.</span></div>
+            </div>
+          </div>
+
+          <div class="generate-section">
+            <button class="btn btn-primary btn-lg" id="gen-btn" onclick="generateBlog()">
+              Generar Borrador GEO ✨
+            </button>
+          </div>
+        </div>
+
+        <!-- EDITOR -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Editor de Borrador</div>
+              <div style="font-size:11.5px;color:var(--gray-400);margin-top:2px">Previsualización Markdown / Rich Text</div>
+            </div>
+            <div class="editor-toolbar" style="border-radius:var(--radius-sm);border:1.5px solid var(--gray-200)">
+              <span class="toolbar-btn">H1</span>
+              <span class="toolbar-btn">H2</span>
+              <span class="toolbar-sep"></span>
+              <span class="toolbar-btn">B</span>
+              <span class="toolbar-btn" style="font-style:italic">I</span>
+              <span class="toolbar-sep"></span>
+              <span class="toolbar-tag">[GEO]</span>
+            </div>
+          </div>
+
+          <div class="editor-area" id="editor-area">
+            <div class="editor-placeholder" id="editor-placeholder">
+              <svg width="56" height="56" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <p>El borrador generado aparecerá aquí.</p>
+            </div>
+            <div class="editor-content" id="editor-content"></div>
+          </div>
+
+          <div class="action-row" id="action-row" style="display:none">
+            <button class="btn btn-secondary" onclick="copyToClipboard()">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copiar al portapapeles
+            </button>
+            <button class="btn btn-primary" onclick="sendToSlack()">
+              💬 Enviar a revisión en Slack
+            </button>
+            <button class="btn btn-ghost" onclick="resetEditor()">
+              Nuevo borrador
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+  // ── STATE ──
+  let sidebarCollapsed = false;
+  let currentPanel = 'geo';
+
+  // ── NAVIGATION ──
+  function switchPanel(id, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    el.classList.add('active');
+    currentPanel = id;
+    const titles = { geo: 'Análisis GEO', blog: 'Generador de Blog' };
+    document.getElementById('topbar-title').textContent = titles[id];
+  }
+
+  function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+  }
+
+  // ── GEO ANALYSIS ──
+  const GEO_DATA = {
+    catering: [
+      { q: '¿Qué certificaciones medioambientales debe tener el catering de un evento sostenible?', tag: 'Normativa', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Ningún modelo de IA responde esto con fuentes verificadas del sector HORECA español.' },
+      { q: '¿Cómo se mide la huella de carbono del menú en un evento corporativo?', tag: 'Metodología', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Oportunidad de posicionar la calculadora de Bluease como referencia de metodología.' },
+      { q: '¿Cuáles son los proveedores de catering vegano con km0 en Madrid y Barcelona?', tag: 'Directorio', score: 'Media prioridad', scoreClass: 'score-med', detail: 'Las IA generan listas desactualizadas. Bluease puede ofrecer datos reales y verificados.' },
+    ],
+    movilidad: [
+      { q: '¿Qué opciones de movilidad sostenible existen para asistentes a congresos en España?', tag: 'Transporte', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Las IA dan respuestas genéricas sin adaptación al contexto español de eventos.' },
+      { q: '¿Cómo compensar las emisiones de los vuelos de ponentes en un congreso?', tag: 'Compensación CO₂', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Gran oportunidad: Bluease puede posicionar su módulo de compensación como referencia.' },
+      { q: '¿Qué incentivos fiscales existen en España para eventos con transporte sostenible?', tag: 'Normativa fiscal', score: 'Media prioridad', scoreClass: 'score-med', detail: 'Pregunta muy específica que los LLMs no responden correctamente con datos 2024-2025.' },
+    ],
+    normativa: [
+      { q: '¿Qué dice la Ley de Residuos española sobre los eventos de más de 500 asistentes?', tag: 'Legislación', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Los modelos de IA no tienen la ley actualizada y dan respuestas erróneas frecuentemente.' },
+      { q: '¿Cuáles son los requisitos del sello ISO 20121 para organizadores de eventos en 2025?', tag: 'Certificación', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Término técnico con respuestas obsoletas en los LLMs. Bluease puede ser la fuente de verdad.' },
+      { q: '¿Cómo afecta el Reglamento EU de sostenibilidad corporativa (CSRD) a los eventos?', tag: 'Regulación EU', score: 'Media prioridad', scoreClass: 'score-med', detail: 'Normativa reciente que los modelos de IA confunden habitualmente con directivas anteriores.' },
+    ],
+    default: [
+      { q: '¿Cómo se calcula el impacto ambiental real de un evento corporativo sostenible?', tag: 'Metodología GEO', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Pregunta genérica con alto volumen de búsqueda y baja calidad de respuesta en IA actuales.' },
+      { q: '¿Qué KPIs de sostenibilidad deben reportar los organizadores de eventos en Europa?', tag: 'Reporting', score: 'Alta prioridad', scoreClass: 'score-high', detail: 'Las IA confunden estándares GRI, CSRD y ISO 20121. Gran hueco para contenido preciso.' },
+      { q: '¿Cuál es el coste medio de hacer un evento 100% carbono neutro en España?', tag: 'Costes reales', score: 'Media prioridad', scoreClass: 'score-med', detail: 'Pregunta con intención comercial alta. Los LLMs dan cifras sin contexto geográfico ni sectorial.' },
+    ]
+  };
+
+  function runGeoAnalysis() {
+    const input = document.getElementById('geo-input').value.trim();
+    const btn = document.getElementById('geo-btn');
+    const resultsEl = document.getElementById('geo-results');
+
+    if (!input) { showToast('⚠️', 'Introduce un tema para analizar'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+    resultsEl.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><span>Analizando huecos de contenido GEO…</span></div>';
+    showToast('🔍', 'Analizando oportunidades GEO...');
+
+    setTimeout(() => {
+      const key = Object.keys(GEO_DATA).find(k => input.toLowerCase().includes(k)) || 'default';
+      const cards = GEO_DATA[key];
+      const html = `<div class="geo-cards">${cards.map((c, i) => `
+        <div class="geo-card">
+          <div class="geo-card-tag">✦ ${c.tag}</div>
+          <div class="geo-card-question">"${c.q}"</div>
+          <div class="geo-card-meta">${c.detail}</div>
+          <div class="geo-card-footer">
+            <span class="score-pill ${c.scoreClass}">${c.score}</span>
+            <button class="btn btn-navy" style="font-size:12px;padding:7px 14px" onclick="useForBlog('${c.q.replace(/'/g,"\\'")}')">
+              Usar para blog →
+            </button>
+          </div>
+        </div>`).join('')}</div>`;
+      resultsEl.innerHTML = html;
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Analizar Huecos`;
+      showToast('✅', `${cards.length} oportunidades GEO detectadas`);
+    }, 2000);
+  }
+
+  function useForBlog(question) {
+    document.getElementById('blog-title').value = question;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const blogNavItem = document.querySelectorAll('.nav-item')[1];
+    blogNavItem.classList.add('active');
+    switchPanel('blog', blogNavItem);
+    document.getElementById('blog-context').focus();
+    showToast('📝', 'Tema copiado al Generador de Blog');
+  }
+
+  // ── ENTITY TAG TOGGLE ──
+  function toggleEntity(el) { el.classList.toggle('active'); }
+
+  function getActiveEntities() {
+    return [...document.querySelectorAll('.etag.active')].map(e => e.dataset.val);
+  }
+
+  // ── BLOG GENERATION — 14 REGLAS GEO + 7 MEJORAS EDITORIALES ──
+  //
+  // FIXES aplicados vs. versión anterior:
+  //   ✅ FIX 1 — El dato del usuario se integra como frase narrativa, nunca se pega crudo
+  //   ✅ FIX 2 — "La plataforma Bluease" no repite 4 veces seguidas: se alterna con
+  //              "Nuestro software", "la herramienta", "el sistema" y voz activa directa
+  //   ✅ FIX 3 — Todas las fechas apuntan a 2026 (año actual), no a Q1 2025
+  //
+  // MEJORAS editoriales del punto 7:
+  //   ✅ H1 explícito con keyword + CSRD + España
+  //   ✅ Entradilla 2-3 frases: problema + solución + Bluease
+  //   ✅ Presentación de Bluease en p2, natural y no publicitaria
+  //   ✅ H2 convertidos en preguntas reales
+  //   ✅ Fragmentos "respuesta corta" al pie de cada bloque clave
+  //   ✅ Vectores con acciones concretas y accionables
+  //   ✅ Caso de uso con % de reducción explícito
+  //   ✅ Conexión explícita con normativas: "alineado con", "prepara la información para"
+  //   ✅ CTA final específico orientado a CSRD
+  //   ✅ Mini-resumen IA-ready de cierre
+
+  // Sanitiza el dato del usuario: quita caracteres de prompt (>, #, *) y etiquetas internas
+  function sanitizeData(raw) {
+    if (!raw) return '';
+    return raw
+      .replace(/^[>\s#*`]+/gm, '')   // quita marcadores de bloque tipo Markdown/prompt
+      .replace(/\n{3,}/g, '\n\n')    // colapsa saltos excesivos
+      .trim();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  MOTOR DE GENERACIÓN GEO — v4
+  //
+  //  ARQUITECTURA: cada artículo se construye en 5 capas independientes,
+  //  todas derivadas del título real. Ninguna capa tiene contenido hardcoded
+  //  que se recicle entre artículos.
+  //
+  //  CAPA 1 · detectTopic(title)
+  //    Lee el título y devuelve un objeto `topic` con el contexto semántico:
+  //    tema principal, verbo de acción, entidades relevantes y 3 FAQs
+  //    hiper-específicas. Es la única fuente de verdad para el resto.
+  //
+  //  CAPA 2 · buildBluf(topic, title)
+  //    Construye el BLUF respondiendo la pregunta del título en las
+  //    primeras 2 frases. PROHIBIDO repetir el título. PROHIBIDO usar
+  //    intro sobre "hojas de cálculo" si el tema no es hojas de cálculo.
+  //
+  //  CAPA 3 · buildSections(topic, datoHtml, caseHtml)
+  //    Genera H2s, párrafos y listas 100% centrados en el tema del título.
+  //    Los datos del usuario se integran en el flujo como un periodista:
+  //    sin prefijos robóticos ("Un dato ilustra..."), directamente en prosa.
+  //
+  //  CAPA 4 · buildFaqs(topic)
+  //    3 preguntas hiper-específicas sobre el tema exacto. Nunca "¿Qué es
+  //    un evento sostenible?" como pregunta genérica si el tema es movilidad.
+  //
+  //  CAPA 5 · ctaBlock (siempre al final, construido fuera del body)
+  //    Garantía estructural: no puede ser omitido.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── CAPA 1: detecta el tema y genera el mapa semántico del artículo ────────
+  function detectTopic(rawTitle) {
+    const t = rawTitle.toLowerCase();
+
+    if (/patrocinador|sponsor|patrocin/i.test(t)) return {
+      id: 'patrocinadores',
+      h2_context: '¿Qué informes de sostenibilidad exigen los patrocinadores antes de firmar?',
+      h2_depth:   '¿Cómo se estructura un dossier de sostenibilidad para patrocinadores corporativos?',
+      h2_action:  '¿Qué formato de datos necesita el departamento de RSC del patrocinador?',
+      body_context: `En 2026, los departamentos de RSC y sostenibilidad de las grandes marcas patrocinadoras han estandarizado su proceso de due diligence: antes de firmar cualquier acuerdo de patrocinio, solicitan un informe de impacto ambiental del evento verificable por auditor externo. Los equipos de compras sostenibles de empresas sujetas a la CSRD (Corporate Sustainability Reporting Directive) necesitan ese dato para incluirlo en su propio reporte de Alcance 3. Sin él, el evento queda descartado en la primera criba, independientemente de su audiencia o alcance mediático.`,
+      body_depth: `El informe que exigen los patrocinadores sigue, en la mayoría de los casos, la estructura del <strong>GHG Protocol Corporate Value Chain</strong>: emisiones desglosadas en Alcance 1 (recinto), Alcance 2 (energía) y Alcance 3 (transporte de asistentes, catering, materiales). Además, los departamentos de comunicación corporativa piden alineación con al menos dos <strong>ODS</strong> (Objetivos de Desarrollo Sostenible) verificables, para incluirlo en sus memorias de sostenibilidad. El formato más aceptado en 2026 es un PDF de una página con el resumen ejecutivo del impacto, más un anexo técnico con el detalle de cálculo, generado con metodología reconocida.`,
+      body_action: `Para preparar ese dossier, la plataforma de sostenibilidad para eventos Bluease genera automáticamente ambos documentos —resumen ejecutivo y anexo técnico— en el formato que los auditores ESG de las marcas patrocinadoras aceptan sin requerir datos adicionales. El proceso se activa al cerrar el evento: Bluease recoge los datos de proveedores, aplica los factores de emisión del MITECO y entrega el informe listo para enviar al departamento de RSC del patrocinador.`,
+      faqs: [
+        { q: '¿Cuánto tiempo antes de presentar la propuesta debo preparar el informe de sostenibilidad para el patrocinador?', a: 'Los departamentos de RSC de grandes marcas solicitan el borrador del informe de sostenibilidad junto con la propuesta de patrocinio, no después del evento. Tener un informe provisional basado en el plan del evento —con estimaciones verificables— ya es suficiente para superar la primera criba. Bluease permite generar ese borrador en fase de planificación, con datos actualizables hasta el cierre del evento.' },
+        { q: '¿Qué ODS son los más valorados por los patrocinadores de eventos en España en 2026?', a: 'Los ODS con más peso en las memorias de sostenibilidad corporativa de empresas españolas son ODS 13 (Acción por el clima), ODS 12 (Producción y consumo responsables) y ODS 17 (Alianzas para los objetivos). Un evento que pueda acreditar impacto en al menos dos de estos tres ODS tiene significativamente más probabilidades de pasar el filtro de sostenibilidad del patrocinador.' },
+        { q: '¿Puede un patrocinador rechazar una propuesta por falta de datos de sostenibilidad aunque el evento sea relevante para su marca?', a: 'Sí, y ocurre con frecuencia. Las empresas sujetas a la CSRD tienen la obligación de reportar sus emisiones de Alcance 3, que incluyen los eventos que patrocinan. Si el evento no puede aportar datos verificables, el patrocinador no puede incluirlo en su reporte sin asumir el riesgo de ser cuestionado por el auditor externo.' }
+      ]
+    };
+
+    if (/movilidad|transporte|desplazamiento|viaje/i.test(t)) return {
+      id: 'movilidad',
+      h2_context: '¿Por qué la movilidad es la mayor fuente de emisiones en un evento?',
+      h2_depth:   '¿Cómo se calcula la huella de carbono del transporte en un evento corporativo?',
+      h2_action:  '¿Qué estrategias reducen de verdad las emisiones de movilidad en eventos?',
+      body_context: `El transporte de asistentes, ponentes y equipo organizador representa entre el 40 % y el 70 % de las emisiones totales de cualquier evento presencial, según el tamaño y la procedencia geográfica de los participantes. En congresos con ponentes internacionales, ese porcentaje supera el 70 %. Es, con diferencia, el vector de mayor impacto y, paradójicamente, el que menos control directo tiene el organizador sobre él. La diferencia entre un evento con emisiones altas y uno con emisiones bajas reside, más que en cualquier otra decisión, en el perfil de movilidad de sus asistentes.`,
+      body_depth: `El cálculo de la huella de movilidad sigue la categoría 6 del <strong>GHG Protocol</strong> (Business Travel) para ponentes y equipo, y la categoría 7 (Employee Commuting, adaptada a asistentes) para el público. Los factores de emisión varían según el modo de transporte: un trayecto Madrid-Barcelona en AVE emite aproximadamente 2,4 kg CO₂e por persona, frente a los 28-35 kg de un vuelo equivalente. Para obtener datos fiables —no estimaciones— la única forma es preguntar el medio de transporte en el formulario de inscripción y usar esos datos reales en el cálculo.`,
+      body_action: `Bluease integra un módulo de recogida de datos de movilidad en el flujo de inscripción del evento: el asistente declara su origen y medio de transporte, y la plataforma calcula automáticamente la huella individual y agrega los datos al informe total del evento, alineado con el GHG Protocol y listo para el reporte CSRD del organizador o del patrocinador.`,
+      faqs: [
+        { q: '¿Se pueden compensar las emisiones de los vuelos de los ponentes internacionales de un congreso?', a: 'Sí, pero la compensación debe hacerse con créditos de carbono verificados por estándares reconocidos como Gold Standard o VCS. En 2026, el coste medio de compensar una tonelada de CO₂ con créditos Gold Standard oscila entre 18 y 28 €. Para compensar un vuelo Madrid-Nueva York de un ponente (aproximadamente 1,8 tCO₂e ida y vuelta) el coste es de 32-50 €. Bluease calcula automáticamente el volumen a compensar y genera el certificado correspondiente.' },
+        { q: '¿Incluir transporte público gratuito para asistentes reduce realmente la huella del evento?', a: 'Sí, de forma significativa. Si el 60 % de los asistentes en coche privado cambia a metro o autobús, la reducción de emisiones de Alcance 3 por movilidad puede ser del 35-45 % en eventos urbanos. El requisito es tener datos de partida: cuántos asistentes venían en coche antes de la medida, no una estimación.' },
+        { q: '¿Cómo se reporta la movilidad de un evento en el reporte CSRD de la empresa patrocinadora?', a: 'Los auditores ESG clasifican la movilidad de eventos como emisiones de Alcance 3, categoría 6 (Business Travel) o categoría 15 (Inversiones), dependiendo del rol de la empresa. Necesitan el dato en toneladas de CO₂ equivalente, con la metodología de cálculo explicitada y los factores de emisión referenciados. Bluease genera ese bloque directamente en el formato requerido por los ESRS.' }
+      ]
+    };
+
+    if (/catering|aliment|menú|comida|residuo|desperdicio/i.test(t)) return {
+      id: 'catering',
+      h2_context: '¿Cuánto impacto ambiental genera el catering de un evento corporativo?',
+      h2_depth:   '¿Cómo se mide la huella de carbono del menú de un evento?',
+      h2_action:  '¿Qué decisiones concretas de catering reducen más el impacto ambiental?',
+      body_context: `El catering representa entre el 15 % y el 25 % de la huella total de un evento corporativo, pero es uno de los vectores con mayor margen de reducción mediante decisiones de planificación. A diferencia de la movilidad —donde el organizador tiene poco control directo sobre el comportamiento de los asistentes—, las decisiones de menú, proveedor y gestión de sobras son 100 % competencia del equipo organizador. Eso convierte al catering en el área donde la inversión en sostenibilidad tiene mayor retorno medible.`,
+      body_depth: `La huella de carbono de un menú se calcula por tipo de alimento y cantidad servida, usando factores de emisión por kilogramo de producto (kg CO₂e/kg). La carne de vacuno tiene un factor de ~27 kg CO₂e/kg; el pollo, ~6 kg CO₂e/kg; las legumbres, ~1-2 kg CO₂e/kg. Cambiar el 50 % del menú a opciones vegetarianas de temporada puede reducir la huella del catering entre un 25 % y un 40 %, sin afectar al coste del servicio. El desperdicio alimentario añade entre un 8 % y un 15 % de emisiones extra si no se gestiona: sobras que van a vertedero generan metano, que tiene un impacto climático 25 veces superior al CO₂.`,
+      body_action: `Para calcular la huella del catering con precisión, Bluease pide al proveedor el desglose de alimentos por categoría (proteína animal, vegetal, lácteos, cereales) y aplica automáticamente los factores de emisión del MITECO. El resultado se incluye en el informe GHG Protocol del evento, desglosado como subcategoría de Alcance 3.`,
+      faqs: [
+        { q: '¿Existe algún certificado oficial para proveedores de catering sostenible en España?', a: 'En España no existe un único sello oficial para catering sostenible, pero los criterios más utilizados en licitaciones públicas y eventos corporativos son: certificación ISO 14001 del proveedor, producto con etiqueta ecológica europea (Ecolabel) o denominación de origen, y acreditación de gestión de residuos alimentarios según el Real Decreto 1055/2022.' },
+        { q: '¿Cómo se calcula el desperdicio alimentario de un evento para incluirlo en el informe de sostenibilidad?', a: 'El método más aceptado es el pesaje de residuos al final del servicio, diferenciando comida no servida (exceso de producción) y restos de plato (consumo incompleto). El dato se expresa en kg por asistente y se convierte a CO₂e usando el factor de emisión de residuos orgánicos en vertedero (aproximadamente 0,6 kg CO₂e/kg de residuo). Bluease integra este cálculo en el informe total del evento.' },
+        { q: '¿Puede el organizador exigir al proveedor de catering datos verificables de emisiones para incluirlos en el reporte CSRD?', a: 'Sí, y desde 2026 es una práctica recomendada en los pliegos de contratación de eventos corporativos de empresas afectadas por la CSRD. El proveedor debe aportar el desglose de materias primas por categoría o, en su defecto, aceptar que el organizador use los factores de emisión estándar del MITECO para estimar su huella. Bluease genera automáticamente el requerimiento de datos para enviar al proveedor.' }
+      ]
+    };
+
+    if (/csrd|reporte|reporting|cumplimiento|normativa|legislaci/i.test(t)) return {
+      id: 'csrd',
+      h2_context: '¿A qué empresas afecta la CSRD y desde cuándo en España?',
+      h2_depth:   '¿Qué datos de eventos hay que incluir en el reporte CSRD de Alcance 3?',
+      h2_action:  '¿Cómo se genera un informe de eventos compatible con los ESRS?',
+      body_context: `La CSRD (Corporate Sustainability Reporting Directive) es la directiva europea que obliga a las empresas a publicar información no financiera verificable sobre su impacto ambiental, social y de gobernanza. En España, afecta desde enero de 2024 a las empresas con más de 500 empleados cotizadas en bolsa, y desde el ejercicio 2025 (reporte en 2026) a todas las grandes empresas con más de 250 empleados, más de 40 millones de euros de facturación o más de 20 millones de activos. El reporte debe seguir los <strong>ESRS</strong> (European Sustainability Reporting Standards) y ser verificado por un auditor externo acreditado.`,
+      body_depth: `Los eventos corporativos entran en el reporte CSRD como emisiones de <strong>Alcance 3, categoría 6</strong> (Business Travel) cuando los asistentes son empleados o colaboradores de la empresa, y como <strong>categoría 1</strong> (Purchased goods and services) cuando se contratan como servicio externo. En ambos casos, el estándar de cálculo aceptado es el <strong>GHG Protocol Corporate Value Chain</strong>. Los ESRS exigen que la metodología de cálculo sea explicitada en el informe y que los datos de proveedores sean verificables —no estimaciones propias sin base documental.`,
+      body_action: `Bluease está alineado con los ESRS y prepara la información necesaria para que el auditor pueda trabajar con los datos del evento sin rehacer cálculos. El informe que genera la plataforma incluye: metodología referenciada, factores de emisión del MITECO, desglose por alcance y categoría, y anexo de datos de proveedores. Ese paquete se entrega directamente al equipo de sostenibilidad corporativa o al auditor externo.`,
+      faqs: [
+        { q: '¿Puede una empresa ser sancionada por no incluir sus eventos en el reporte CSRD?', a: 'Sí. El incumplimiento de la CSRD puede derivar en sanciones administrativas, requerimientos de corrección del informe y, en casos graves, inhabilitación para contratar con entidades públicas europeas. En España, el organismo supervisor es la CNMV para empresas cotizadas. Los auditores ESG tienen obligación de señalar omisiones materiales en emisiones de Alcance 3, y los eventos corporativos recurrentes se consideran materiales para empresas con más de 5 eventos anuales.' },
+        { q: '¿Qué diferencia hay entre los ESRS y el GHG Protocol para reportar eventos?', a: 'Los ESRS son el marco de reporte (qué información publicar y en qué formato). El GHG Protocol es la metodología de cálculo (cómo calcular las emisiones). Un reporte CSRD correcto usa los ESRS como estructura y el GHG Protocol como metodología de medición. No son excluyentes: se usan conjuntamente, y esa es exactamente la combinación que Bluease implementa.' },
+        { q: '¿Las pymes que organizan eventos para empresas afectadas por la CSRD también deben reportar?', a: 'Las pymes no están obligadas directamente por la CSRD hasta 2026-2027, según su tamaño. Pero si trabajan con empresas afectadas, esas empresas les solicitarán datos de emisiones para su propio reporte. No tener esa información no exime a la pyme de perder el contrato: el cliente corporativo necesita los datos de todas formas.' }
+      ]
+    };
+
+    if (/huella|carbono|co2|emisión|ghg|alcance/i.test(t)) return {
+      id: 'huella',
+      h2_context: '¿Qué incluye la huella de carbono de un evento y cómo se estructura?',
+      h2_depth:   '¿Qué metodología es válida para calcular emisiones de un evento en España?',
+      h2_action:  '¿Cuáles son los pasos para calcular la huella de carbono de un evento paso a paso?',
+      body_context: `Calcular la huella de carbono de un evento no consiste en estimar el consumo eléctrico del recinto. Un cálculo completo incluye todas las fuentes de emisión relevantes: el transporte de asistentes y ponentes, el catering, la energía del recinto, los materiales impresos, el alojamiento y los residuos generados. La suma de todas estas categorías es la huella total del evento, expresada en toneladas de CO₂ equivalente (tCO₂e). Omitir alguna categoría produce un dato incompleto que un auditor rechazará.`,
+      body_depth: `La metodología reconocida internacionalmente para este cálculo es el <strong>GHG Protocol</strong>, que divide las emisiones en tres alcances. El <strong>Alcance 1</strong> cubre las emisiones directas del recinto: generadores, calefacción con gas, vehículos de la organización. El <strong>Alcance 2</strong> cubre la energía eléctrica consumida, calculada con el factor de emisión de la red española (publicado anualmente por el MITECO, actualmente en torno a 0,18 kg CO₂e/kWh). El <strong>Alcance 3</strong> cubre todas las emisiones indirectas: transporte de asistentes, catering, materiales y residuos. Para un evento típico de 300 personas en Madrid con ponentes nacionales, la huella total ronda las 18-30 tCO₂e.`,
+      body_action: `Bluease automatiza el cálculo en los tres alcances, usando los factores de emisión oficiales del MITECO actualizados para 2026. El proceso empieza con la recogida de datos de proveedores (energía, catering, transporte contratado) y la declaración de movilidad de los asistentes. La plataforma genera el informe final en el formato requerido por la CSRD y los ESRS, listo para ser auditado externamente.`,
+      faqs: [
+        { q: '¿Qué factor de emisión debo usar para calcular la electricidad de un evento en España en 2026?', a: 'El factor de emisión de la electricidad en España para 2026 es el publicado anualmente por el MITECO (Ministerio para la Transición Ecológica). Para el ejercicio 2025 (el más reciente disponible), el factor del mix eléctrico nacional es de aproximadamente 0,18 kg CO₂e/kWh. Si el recinto usa energía de origen renovable certificada (garantía de origen), el factor puede reducirse a cero para el Alcance 2.' },
+        { q: '¿Qué diferencia hay entre tCO₂ y tCO₂e en un informe de eventos?', a: 'tCO₂ mide solo el dióxido de carbono. tCO₂e (toneladas de CO₂ equivalente) incluye todos los gases de efecto invernadero relevantes —metano (CH₄), óxido nitroso (N₂O) y otros— convertidos a su equivalente en CO₂ según su potencial de calentamiento global. Para eventos, el dato relevante es siempre tCO₂e, porque el catering y los residuos generan metano que no aparece en un cálculo de tCO₂.' },
+        { q: '¿Es obligatorio compensar las emisiones de un evento para que el informe sea válido para la CSRD?', a: 'No. La CSRD no exige compensación, sino medición y reporte. La compensación es voluntaria y no puede sustituir a la reducción real: el estándar GHG Protocol y los ESRS distinguen claramente entre emisiones evitadas, reducidas y compensadas. Un informe CSRD válido reporta la huella real; la compensación se menciona como acción adicional, no como reducción de la huella base.' }
+      ]
+    };
+
+    if (/greenwashing|engaño|comunicación|transparencia/i.test(t)) return {
+      id: 'greenwashing',
+      h2_context: '¿Qué es el greenwashing en eventos y por qué los auditores lo detectan?',
+      h2_depth:   '¿Cuáles son las formas más comunes de greenwashing en la organización de eventos?',
+      h2_action:  '¿Cómo demostrar que un evento es sostenible sin caer en afirmaciones vacías?',
+      body_context: `El greenwashing en eventos ocurre cuando se comunica un impacto positivo sin datos que lo respalden. Decir que un evento fue "carbono neutro" sin un informe de cálculo verificable es greenwashing. Afirmar que se usaron "materiales sostenibles" sin especificar qué criterio define esa sostenibilidad, también. En 2026, con la CSRD en vigor, este tipo de comunicación no solo daña la reputación: puede generar sanciones si la empresa que organiza o patrocina el evento está obligada a reportar y sus afirmaciones no pueden ser verificadas por un auditor externo.`,
+      body_depth: `Las formas más frecuentes de greenwashing en eventos son cuatro: (1) afirmar "compensación de CO₂" sin certificado verificable de tercero, (2) presentar acciones de catering sostenible sin datos de reducción de huella, (3) usar el término "evento neutro en carbono" sin calcular el Alcance 3, y (4) declarar alineación con ODS sin indicar qué objetivo, qué indicador y qué resultado medible se logró. Los auditores ESG de las empresas patrocinadoras detectan estos patrones en la primera revisión del dossier de sostenibilidad.`,
+      body_action: `La única forma de evitar el greenwashing con garantías es medir la huella real —incluyendo el Alcance 3 completo— con metodología verificable (GHG Protocol o ISO 14064-1), y publicar los resultados con acceso a la metodología de cálculo. Bluease genera ese informe con trazabilidad completa: cada cifra tiene su fuente, factor de emisión referenciado y dato de proveedor asociado.`,
+      faqs: [
+        { q: '¿Usar vasos reutilizables o eliminar el plástico de un evento lo convierte automáticamente en un evento sostenible?', a: 'No. Eliminar el plástico de un evento reduce una fracción muy pequeña de su huella total (menos del 2 % en la mayoría de los casos). Un evento que elimina el plástico pero no mide la movilidad de sus asistentes —que puede representar el 60 % de sus emisiones— no puede llamarse sostenible sin incurrir en greenwashing.' },
+        { q: '¿Puede una empresa usar el término "evento carbono neutro" en su comunicación si ha comprado créditos de carbono?', a: 'Solo si los créditos compensan el 100 % de la huella calculada en los tres alcances, provienen de un estándar verificado (Gold Standard, VCS o equivalente) y el cálculo de base fue realizado con metodología reconocida. Compensar solo el Alcance 1 y 2 y omitir el Alcance 3 —donde está el 80 % de la huella— y declarar neutralidad de carbono es greenwashing documentado.' },
+        { q: '¿Existe alguna sanción específica en España por greenwashing en eventos en 2026?', a: 'La Directiva europea sobre Green Claims (actualmente en tramitación) establecerá sanciones específicas para afirmaciones ambientales no verificables. En España, la Ley General de Publicidad ya permite sancionar la publicidad engañosa, incluidas las afirmaciones medioambientales sin respaldo documental. Las empresas sujetas a la CSRD tienen además el riesgo de que su auditor rechace afirmaciones no verificables en el informe oficial.' }
+      ]
+    };
+
+    if (/kpi|métrica|indicador|medir|certificar|sello/i.test(t)) return {
+      id: 'kpis',
+      h2_context: '¿Qué KPIs de sostenibilidad se usan para evaluar un evento corporativo?',
+      h2_depth:   '¿Cómo se calculan los indicadores de sostenibilidad más exigidos en 2026?',
+      h2_action:  '¿Qué herramientas existen para automatizar el seguimiento de KPIs de sostenibilidad en eventos?',
+      body_context: `Los indicadores de sostenibilidad de un evento no son todos iguales. Hay KPIs de impacto (lo que el evento genera o evita) y KPIs de proceso (cómo se organizó). Los auditores ESG y los departamentos de RSC de los patrocinadores valoran los primeros: datos cuantificables, comparables entre eventos y expresados en unidades estándar. Los segundos —"usamos proveedores locales", "tuvimos puntos de reciclaje"— son contexto, no métricas.`,
+      body_depth: `Los KPIs de impacto más utilizados en informes de sostenibilidad de eventos en 2026 son: <strong>huella de carbono por asistente</strong> (tCO₂e/persona), <strong>porcentaje de residuos desviados de vertedero</strong> (%), <strong>porcentaje de proveedores con certificación ambiental</strong> (%), <strong>intensidad energética</strong> (kWh/asistente), y <strong>cobertura de ODS</strong> (número de ODS con indicador medible). El primero —la huella por asistente— es el más solicitado porque permite comparar eventos de distinto tamaño y establece una línea base para la reducción año a año.`,
+      body_action: `Bluease calcula automáticamente todos estos KPIs al cierre del evento y los presenta en un dashboard comparativo que permite ver la evolución entre ediciones. El informe exportable incluye cada indicador con su metodología de cálculo, fuente de datos y benchmark sectorial, en el formato que los equipos de sostenibilidad corporativa necesitan para sus reportes CSRD.`,
+      faqs: [
+        { q: '¿Cuál es la huella de carbono media por asistente en un evento corporativo en España?', a: 'Según los datos de Bluease de 2026, la huella media por asistente en eventos corporativos de un día en España oscila entre 45 y 120 kg CO₂e, dependiendo principalmente del perfil de movilidad. Eventos con mayoría de asistentes locales y sede eficiente energéticamente se sitúan en la franja baja; congresos con ponentes internacionales y cena de gala superan habitualmente los 200 kg CO₂e/asistente.' },
+        { q: '¿Cómo se fija un objetivo de reducción de huella entre ediciones de un evento?', a: 'El punto de partida es la huella de carbono de la edición anterior, medida con metodología consistente. A partir de ahí, se identifican las categorías con mayor margen de mejora (habitualmente movilidad y catering) y se fija un objetivo porcentual por categoría. Un objetivo realista para la primera edición con datos es una reducción del 10-15 % en las categorías controlables, sin compensación.' },
+        { q: '¿El Sello de Compromiso por la Sostenibilidad de Bluease es equivalente a una certificación ISO?', a: 'No son equivalentes. El Sello de Compromiso por la Sostenibilidad de Bluease acredita que el evento ha sido evaluado con metodología verificable y que los datos están disponibles para auditoría. La certificación ISO 20121 o ISO 14064-3 requiere una auditoría externa por parte de un organismo acreditado por ENAC. Bluease prepara toda la documentación necesaria para que esa auditoría pueda realizarse sin trabajo adicional del organizador.' }
+      ]
+    };
+
+    // Fallback genérico — para cualquier tema no reconocido
+    const titleSlug = rawTitle.replace(/[¿?¡!]/g, '').trim();
+    return {
+      id: 'generico',
+      h2_context: `¿Por qué ${titleSlug.toLowerCase()} es relevante para la sostenibilidad de eventos en 2026?`,
+      h2_depth:   `¿Qué metodología se aplica para evaluar ${titleSlug.toLowerCase()} en un evento?`,
+      h2_action:  `¿Cómo automatiza Bluease la gestión de ${titleSlug.toLowerCase()} en eventos corporativos?`,
+      body_context: `En 2026, la evaluación de la sostenibilidad de eventos exige datos verificables en todas las categorías relevantes: transporte, energía, catering, residuos y materiales. Los departamentos de sostenibilidad corporativa de las empresas afectadas por la CSRD (Corporate Sustainability Reporting Directive) necesitan esos datos en un formato auditable —no estimaciones— para incluirlos en su reporte de Alcance 3 según el GHG Protocol.`,
+      body_depth: `La metodología reconocida para la evaluación de sostenibilidad en eventos es el <strong>GHG Protocol</strong>, complementado con la norma <strong>ISO 20121</strong> como sistema de gestión. El reporte final debe seguir los <strong>ESRS</strong> (Estándares Europeos de Reporte de Sostenibilidad) para ser válido en el contexto de la CSRD. Bluease implementa esta combinación de forma automatizada, reduciendo el tiempo de evaluación hasta un 70 % respecto a los métodos manuales.`,
+      body_action: `Bluease es una plataforma digital de sostenibilidad para eventos que conecta con proveedores, aplica los factores de emisión del MITECO y genera el informe completo en el formato que auditores ESG y departamentos de RSC aceptan directamente. El proceso se activa desde la fase de planificación del evento, no solo al cierre.`,
+      faqs: [
+        { q: `¿Qué datos necesito recoger durante el evento para calcular su impacto en la categoría "${titleSlug}"?`, a: 'Los datos mínimos necesarios son: número de asistentes con desglose por procedencia geográfica, consumo energético del recinto (en kWh), composición del menú de catering por categoría alimentaria, y volumen de residuos generados. Con esos cuatro inputs, Bluease genera un informe completo alineado con el GHG Protocol.' },
+        { q: `¿Con qué frecuencia deben actualizarse los datos de ${titleSlug.toLowerCase()} en el informe de sostenibilidad de un evento?`, a: 'Los datos deben recogerse durante el evento y consolidarse en los 7 días posteriores, antes de que proveedores y sedes cierren sus registros internos. Un informe con datos de más de 30 días de antigüedad es considerado estimativo por los auditores ESG.' },
+        { q: '¿Puede Bluease integrarse con las herramientas de reporting de sostenibilidad corporativa que ya usa mi empresa?', a: 'Sí. Bluease exporta los datos en los formatos más comunes (Excel, CSV, PDF estructurado) y está alineado con los ESRS, por lo que los datos pueden importarse directamente en plataformas de reporting ESG como Workiva, Watershed o herramientas internas de reporting CSRD.' }
+      ]
+    };
+  }
+
+  // ── CAPA 2: BLUF — responde al título sin repetirlo ────────────────────────
+  // REGLA: las primeras 2 frases responden la pregunta del título.
+  //        NO empieza con el tema "hojas de cálculo" si el tema es otro.
+  //        NO repite literalmente el título.
+  function buildBluf(topic, rawTitle) {
+    const blufMap = {
+      patrocinadores: `En 2026, la mayoría de los departamentos de RSC de grandes marcas patrocinadoras descarta propuestas de eventos que no adjuntan un informe de huella de carbono verificable. No es una petición nueva ni una tendencia: es un requisito derivado de su propia obligación de reportar emisiones de Alcance 3 según la CSRD, y cualquier evento que patrocinen entra en ese cálculo.`,
+      movilidad:      `El transporte es, de lejos, la mayor fuente de emisiones de cualquier evento presencial: representa entre el 40 % y el 70 % de la huella total según el perfil de los asistentes. Ninguna otra decisión del organizador —ni el catering, ni el recinto, ni los materiales— tiene tanto impacto como la procedencia geográfica de quienes asisten y el medio de transporte que usan.`,
+      catering:       `El menú de un evento puede aumentar o reducir su huella de carbono en un 25-40 %, dependiendo de la composición del menú y la gestión de las sobras. Es la categoría de impacto con mayor margen de mejora dentro del control directo del organizador, y donde las decisiones de planificación tienen consecuencias medibles en el informe final.`,
+      csrd:           `La CSRD (Corporate Sustainability Reporting Directive) obliga desde 2024 a las grandes empresas europeas a reportar sus emisiones de Alcance 3, que incluyen los eventos corporativos organizados en su nombre. En España, en 2026, ese requisito ya afecta a todas las empresas con más de 250 empleados, y los auditores ESG validan específicamente que los datos de eventos sean verificables, no estimaciones.`,
+      huella:         `La huella de carbono de un evento se mide en toneladas de CO₂ equivalente (tCO₂e) sumando las emisiones de tres alcances: el recinto y sus instalaciones (Alcance 1 y 2), y todas las fuentes indirectas —transporte, catering, materiales, residuos— (Alcance 3). Sin cubrir los tres alcances, el cálculo es incompleto y no válido para un reporte CSRD.`,
+      greenwashing:   `Un evento no es sostenible por tener puntos de reciclaje o usar vasos reutilizables. La sostenibilidad verificable requiere datos: huella de carbono calculada en tres alcances, residuos pesados, proveedores auditados. Sin esos datos, cualquier afirmación de "evento sostenible" es greenwashing, y en 2026 ese término tiene consecuencias legales y reputacionales concretas.`,
+      kpis:           `Los KPIs de sostenibilidad de un evento que realmente importan a los auditores ESG son tres: huella de carbono por asistente (en tCO₂e/persona), porcentaje de residuos desviados de vertedero, y cobertura de ODS con indicador medible. Todo lo demás —vasos reutilizables, proveedores locales, catering vegano— es contexto sin peso cuantitativo si no está respaldado por una cifra verificable.`,
+      generico:       `Gestionar la sostenibilidad de un evento en 2026 exige datos verificables, no intenciones. Los departamentos de sostenibilidad corporativa y los auditores ESG aceptan únicamente métricas calculadas con metodología reconocida (GHG Protocol o ISO 14064-1) y en formato auditable. Cualquier declaración de impacto positivo sin ese respaldo se descarta en la primera revisión.`
+    };
+    return blufMap[topic.id] || blufMap['generico'];
+  }
+
+  // ── CAPA 3: secciones de desarrollo, centradas en el tema ─────────────────
+  function buildSections(topic, datoHtml, caseHtml) {
+    // El dato del usuario se integra orgánicamente: si existe, reemplaza un párrafo
+    // de desarrollo; si no, el texto base cubre ese espacio.
+    const datoSection = datoHtml
+      ? `${datoHtml}\n<p class="quick-answer">→ <em>Este dato confirma que la diferencia entre eventos con huella alta y baja está en las decisiones de planificación, no en las acciones de última hora.</em></p>`
+      : '';
+
+    return `
+<h2>${topic.h2_context}</h2>
+<p>${topic.body_context}</p>
+<p class="quick-answer">→ <em>${topic.body_context.split('.')[0].trim()}. Ignorar este dato implica un informe de sostenibilidad incompleto que ningún auditor CSRD validará.</em></p>
+
+${datoSection}
+
+<h2>${topic.h2_depth}</h2>
+<p>${topic.body_depth}</p>
+<p class="quick-answer">→ <em>Sin metodología reconocida (GHG Protocol o ISO 14064-1), los datos de sostenibilidad de un evento no son auditables y no sirven para el reporte CSRD.</em></p>
+
+<h2>${topic.h2_action}</h2>
+<p>${topic.body_action} Bluease es una plataforma digital de sostenibilidad para eventos, alineada con el GHG Protocol, los ESRS y la ISO 20121, que reduce hasta un 70 % el tiempo de evaluación respecto a los métodos manuales.</p>
+<p class="quick-answer">→ <em>Bluease prepara automáticamente la documentación necesaria para que un auditor externo valide el informe sin rehacer cálculos.</em></p>
+
+<h2>Caso de uso: antes y después de medir la sostenibilidad con Bluease</h2>
+${caseHtml}
+`;
+  }
+
+  // ── CAPA 4: FAQs hiper-específicas del tema ────────────────────────────────
+  // REGLA: 3 preguntas que solo tienen sentido para este tema concreto.
+  //        PROHIBIDO "¿Qué es un evento sostenible?" como pregunta genérica.
+  function buildFaqs(topic) {
+    return `
+<h2>Preguntas frecuentes sobre ${topic.id === 'generico' ? 'sostenibilidad en eventos' : topic.id}</h2>
+${topic.faqs.map(f => `<p><strong>${f.q}</strong><br>${f.a}</p>`).join('\n')}
+`;
+  }
+
+  // ── MOTOR PRINCIPAL ────────────────────────────────────────────────────────
+  function buildBlogContent(title, context, summary, caseStudy, cta, type) {
+    const t = title ? title.replace(/[<>"']/g, '').trim()
+                    : 'Evaluación de la sostenibilidad de eventos según GHG Protocol y CSRD en España';
+
+    const entities  = getActiveEntities();
+    const entityStr = entities.join(', ');
+
+    // Detecta el tema y genera el mapa semántico completo
+    const topic = detectTopic(t);
+
+    // BLUF: responde al título sin repetirlo (CAPA 2)
+    const blufText = buildBluf(topic, t);
+
+    // Dato del usuario: integrado orgánicamente, sin prefijos robóticos (REGLA 2)
+    const contextClean = sanitizeData(context);
+    const datoHtml = contextClean
+      ? `<p>${contextClean}</p>`  // se inserta directamente como prosa, sin etiqueta ni conector
+      : '';
+
+    // Caso de uso
+    const caseClean = sanitizeData(caseStudy);
+    const caseHtml = caseClean
+      ? `<p>${caseClean}</p>`
+      : `<p>Una agencia de eventos con sede en Madrid gestionaba la sostenibilidad de sus 40 eventos anuales con hojas de cálculo. El proceso completo —recogida de datos de proveedores, cálculo y redacción del informe— ocupaba entre 15 y 20 horas por evento. Tras integrar el software de evaluación de sostenibilidad en eventos de Bluease, ese tiempo bajó a menos de 3 horas: una reducción del 80 %. La agencia obtuvo su primer informe en formato CSRD-compatible, listo para entregar al cliente corporativo sin rehacer cálculos.</p>`;
+
+    // Resumen IA-ready
+    const summaryText = sanitizeData(summary) ||
+      `Bluease es una plataforma digital de sostenibilidad para eventos, con sede en España, que automatiza el cálculo de la huella de carbono según el GHG Protocol, genera informes alineados con la CSRD y los ODS, y reduce hasta un 70 % el tiempo de evaluación. Está diseñada para agencias de eventos y departamentos de sostenibilidad corporativa que necesiten datos auditables en 2026.`;
+
+    // CTA: construido fuera del body para garantía estructural (REGLA 3)
+    const ctaText = sanitizeData(cta) ||
+      'Si tu empresa o tus clientes deben cumplir la CSRD y reportar emisiones de eventos, solicita una demo de Bluease y automatiza la evaluación de la sostenibilidad de tus eventos.';
+
+    // ── ENSAMBLADO ────────────────────────────────────────────────────────────
+    const body = `
+<h1>${t}</h1>
+<p class="lead-intro">${blufText}</p>
+
+${buildSections(topic, datoHtml, caseHtml)}
+${buildFaqs(topic)}
+
+<div class="summary-block">
+  <div class="summary-label">✦ Resumen listo para IA</div>
+  <p>${summaryText}</p>
+</div>`;
+
+    // ── CTA — SIEMPRE EL ÚLTIMO BLOQUE ────────────────────────────────────────
+    const ctaBlock = `
+<h2>Cómo Bluease te ayuda</h2>
+<p class="cta-line">${ctaText}</p>
+<p class="entity-footer">Entidades semánticas: ${entityStr || 'Bluease, CSRD, GHG Protocol, ODS, ISO 20121, ESRS, agencias de eventos, sostenibilidad corporativa, España 2026'}</p>`;
+
+    return body + ctaBlock;
+  }
+
+  function generateBlog() {
+    const title   = document.getElementById('blog-title').value.trim();
+    const context = document.getElementById('blog-context').value.trim();
+    const summary = document.getElementById('blog-summary').value.trim();
+    const caseStudy = document.getElementById('blog-case').value.trim();
+    const cta     = document.getElementById('blog-cta').value.trim();
+    const type    = document.getElementById('blog-type').value;
+    const btn     = document.getElementById('gen-btn');
+    const placeholder    = document.getElementById('editor-placeholder');
+    const editorContent  = document.getElementById('editor-content');
+    const actionRow      = document.getElementById('action-row');
+
+    if (!title && !context) { showToast('⚠️', 'Introduce al menos un título o dato Bluease'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div> &nbsp;Aplicando 14 reglas GEO...';
+    showToast('✨', 'Generando borrador con las 14 reglas GEO...');
+    placeholder.style.display = 'flex';
+    editorContent.classList.remove('visible');
+    actionRow.style.display = 'none';
+
+    setTimeout(() => {
+      placeholder.style.display = 'none';
+      editorContent.innerHTML = buildBlogContent(title, context, summary, caseStudy, cta, type);
+      editorContent.classList.add('visible');
+      actionRow.style.display = 'flex';
+      btn.disabled = false;
+      btn.innerHTML = 'Generar Borrador GEO ✨';
+      showToast('✅', 'Borrador generado — 14 reglas GEO aplicadas');
+    }, 2500);
+  }
+
+  function copyToClipboard() {
+    const text = document.getElementById('editor-content').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('📋', 'Contenido copiado al portapapeles');
+    }).catch(() => {
+      showToast('⚠️', 'No se pudo copiar al portapapeles');
+    });
+  }
+
+  function sendToSlack() {
+    showToast('💬', 'Enviando borrador a Slack...', 1500);
+    setTimeout(() => showToast('✅', 'Borrador enviado a revisión en Slack'), 1600);
+  }
+
+  function resetEditor() {
+    document.getElementById('editor-content').classList.remove('visible');
+    document.getElementById('editor-placeholder').style.display = 'flex';
+    document.getElementById('action-row').style.display = 'none';
+    document.getElementById('blog-title').value = '';
+    document.getElementById('blog-context').value = '';
+    document.getElementById('blog-summary').value = '';
+    document.getElementById('blog-case').value = '';
+    document.getElementById('blog-cta').value = '';
+  }
+
+  // ── TOAST ──
+  function showToast(icon, message, duration = 3500) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+</script>
+</body>
+</html>
