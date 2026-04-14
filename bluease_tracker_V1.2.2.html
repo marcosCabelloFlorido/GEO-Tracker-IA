@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bluease — GEO Tracker Enterprise</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      /* Tema Enterprise - Base */
+      --bg-body: #f3f4f6;
+      --bg-surface: #ffffff;
+      --bg-sidebar: #0f172a; 
+      
+      /* Acentos Profesionales */
+      --accent-primary: #2563eb; 
+      --accent-hover: #1d4ed8;
+      --accent-muted: #94a3b8;
+
+      /* Estados */
+      --success: #10b981;
+      --success-light: #d1fae5;
+      --warning: #f59e0b;
+      --warning-light: #fef3c7;
+      --danger: #ef4444;
+      --danger-light: #fee2e2;
+
+      /* Texto */
+      --text-main: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #6b7280;
+      
+      /* Sidebar Texto */
+      --text-sb: #94a3b8;
+      --text-sb-hover: #f8fafc;
+
+      /* Bordes y Sombras */
+      --border: #e5e7eb;
+      --border-light: #f3f4f6;
+      
+      --radius-lg: 12px;
+      --radius: 8px;
+      --radius-sm: 6px;
+      
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --transition: all 0.2s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #0b1120;
+      --bg-surface: #1e293b;
+      --bg-sidebar: #020617;
+      
+      --text-main: #f9fafb;
+      --text-secondary: #cbd5e1;
+      --text-muted: #9ca3af;
+      
+      --border: #334155;
+      --border-light: #1e293b;
+      
+      --success-light: rgba(16,185,129,0.15);
+      --warning-light: rgba(245,158,11,0.15);
+      --danger-light: rgba(239,68,68,0.15);
+    }
+
+    html, body { height: 100%; font-family: var(--font); background: var(--bg-body); color: var(--text-main); font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+    .app { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+    /* SIDEBAR */
+    .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; flex-shrink: 0; transition: transform var(--transition); }
+    .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo { width: 36px; height: 36px; background: var(--accent-primary); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .sidebar-logo span { color: #ffffff; font-weight: 700; font-size: 18px; }
+    .sidebar-brand { display: flex; flex-direction: column; }
+    .sidebar-title { font-size: 15px; font-weight: 600; color: #ffffff; letter-spacing: -0.2px; }
+    .sidebar-subtitle { font-size: 11px; color: var(--text-sb); margin-top: 2px; }
+
+    .sidebar-nav { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--radius); cursor: pointer; transition: var(--transition); color: var(--text-sb); user-select: none; position: relative; }
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text-sb-hover); }
+    .nav-item.active { background: var(--accent-primary); color: #ffffff; box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+    .nav-item.done { color: var(--text-sb); opacity: 0.7; }
+    .nav-icon { width: 22px; height: 22px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.05); flex-shrink: 0; transition: var(--transition); }
+    .nav-item.active .nav-icon { background: rgba(0,0,0,0.2); color: #ffffff; }
+    .nav-item.done .nav-icon { background: rgba(16,185,129,0.2); color: #34d399; }
+    .nav-label { font-size: 13px; font-weight: 500; flex: 1; }
+    
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: var(--text-sb); }
+
+    /* MAIN */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; background: var(--bg-body); }
+    
+    .topbar { height: 64px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; background: var(--bg-surface); flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 20px; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    
+    .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+    .breadcrumb-item.active { color: var(--text-main); font-weight: 600; }
+    
+    .progress-dots { display: flex; gap: 8px; align-items: center; }
+    .progress-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: var(--transition); }
+    .progress-dot.active { background: var(--accent-primary); transform: scale(1.2); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .progress-dot.done { background: var(--success); }
+
+    .theme-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius); background: transparent; color: var(--text-muted); cursor: pointer; transition: var(--transition); border: none; flex-shrink: 0; }
+    .theme-btn:hover { background: var(--bg-body); color: var(--text-main); }
+    .theme-icon { width: 18px; height: 18px; fill: currentColor; }
+    
+    .topbar-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; margin: 0 16px; }
+
+    .content { flex: 1; overflow-y: auto; padding: 32px; }
+    .screen { display: none; animation: fadeIn 0.3s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .screen-header { margin-bottom: 32px; }
+    .screen-header h1 { font-size: 26px; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; margin-bottom: 8px; }
+    .screen-header p { font-size: 15px; color: var(--text-secondary); line-height: 1.6; max-width: 650px; }
+
+    /* CARD */
+    .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 24px; box-shadow: var(--shadow-sm); transition: var(--transition); }
+    .card:hover { box-shadow: var(--shadow); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .card-title { font-size: 16px; font-weight: 600; color: var(--text-main); letter-spacing: -0.2px; }
+    .card-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: var(--bg-body); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* FORMULARIOS */
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 8px; }
+    .fi, .fs { width: 100%; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-main); font-family: var(--font); font-size: 14px; outline: none; transition: var(--transition); box-shadow: var(--shadow-sm); }
+    .fi:hover, .fs:hover { border-color: var(--accent-muted); }
+    .fi:focus, .fs:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+    .fi::placeholder { color: var(--text-muted); opacity: 0.7; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .form-full { margin-bottom: 20px; }
+    .fs { cursor: pointer; }
+
+    /* BOTONES */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: var(--transition); text-decoration: none; box-shadow: var(--shadow-sm); }
+    .btn-primary { background: var(--accent-primary); color: #ffffff; }
+    .btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow); transform: translateY(-1px); }
+    .btn-secondary { background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-body); border-color: var(--accent-muted); }
+    .btn-ghost { background: transparent; color: var(--text-muted); box-shadow: none; border: 1px solid transparent; }
+    .btn-ghost:hover { background: var(--bg-body); color: var(--text-main); border-color: var(--border); }
+    .btn-danger { background: var(--bg-surface); color: var(--danger); border: 1px solid var(--danger-light); padding: 8px 14px; }
+    .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-sm { padding: 7px 12px; font-size: 12px; }
+
+    /* TABLAS */
+    .tw { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 12px; font-weight: 500; color: var(--text-muted); padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--bg-body); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-main); background: var(--bg-surface); }
+    tr:last-child td { border-bottom: none; }
+    .tdi { background: transparent; border: none; color: var(--text-main); font-family: var(--font); font-size: 14px; outline: none; width: 100%; padding: 6px 8px; border-radius: var(--radius-sm); transition: var(--transition); }
+    .tdi:hover { background: var(--bg-body); }
+    .tdi:focus { background: var(--bg-surface); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+    .add-row { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; background: transparent; border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; width: 100%; transition: var(--transition); }
+    .add-row:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: rgba(37,99,235,0.02); }
+
+    /* PROGRESS SCRAPING */
+    .prog-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .prog-track { flex: 1; height: 8px; background: var(--bg-body); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+    .prog-fill { height: 100%; background: var(--accent-primary); border-radius: 4px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .prog-lbl { font-size: 13px; font-weight: 600; color: var(--text-main); font-family: var(--mono); min-width: 40px; text-align: right; }
+
+    .status-list { display: flex; flex-direction: column; gap: 8px; }
+    .status-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--bg-body); font-size: 13px; color: var(--text-secondary); font-weight: 500; border: 1px solid var(--border); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+    .status-item.running .status-dot { background: var(--accent-primary); animation: pulse 1s infinite; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .status-item.done .status-dot { background: var(--success); }
+    .status-item.error .status-dot { background: var(--danger); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* CHECKS & VERIFICACIONES */
+    .check-list { display: flex; flex-direction: column; gap: 12px; }
+    .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border-radius: var(--radius-sm); background: var(--bg-body); border: 1px solid var(--border); }
+    .check-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
+    .check-icon.ok { color: var(--success); }
+    .check-icon.warn { color: var(--warning); }
+    .check-icon.fail { color: var(--danger); }
+    .check-text { font-size: 14px; color: var(--text-main); line-height: 1.5; }
+    .check-text strong { font-weight: 600; color: var(--text-main); }
+
+    .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    /* MANUAL QUESTIONS */
+    .manual-q { margin-bottom: 24px; }
+    .q-label { font-size: 14px; font-weight: 500; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .q-help { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .options { display: flex; gap: 8px; flex-wrap: wrap; }
+    .option { padding: 8px 16px; border-radius: 20px; background: var(--bg-body); border: 1px solid var(--border); color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); }
+    .option:hover { border-color: var(--accent-muted); color: var(--text-main); }
+    .option.selected-yes { background: var(--success-light); border-color: var(--success); color: #065f46; font-weight: 600; }
+    .option.selected-partial { background: var(--warning-light); border-color: var(--warning); color: #92400e; font-weight: 600; }
+    .option.selected-no { background: var(--danger-light); border-color: var(--danger); color: #991b1b; font-weight: 600; }
+    .star-rating { display: flex; gap: 4px; }
+    .star-btn { background: transparent; border: none; font-size: 28px; color: var(--border); cursor: pointer; transition: var(--transition); padding: 0; line-height: 1; }
+    .star-btn:hover, .star-btn.active { color: var(--warning); }
+    .manual-progress-wrap { background: var(--bg-body); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+    .mp-info { display: flex; flex-direction: column; gap: 4px; }
+    .mp-title { font-size: 13px; font-weight: 600; color: var(--text-main); }
+    .mp-desc { font-size: 12px; color: var(--text-muted); }
+    .mp-bar-bg { width: 140px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .mp-bar-fill { height: 100%; background: var(--success); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    textarea.fi { resize: vertical; min-height: 80px; }
+
+    .nav-actions { display: flex; gap: 12px; margin-top: 32px; align-items: center; border-top: 1px solid var(--border); padding-top: 24px; }
+
+    /* COMP TABS */
+    .comp-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; padding: 4px; background: var(--bg-body); border-radius: var(--radius); width: fit-content; border: 1px solid var(--border); }
+    .comp-tab { padding: 8px 16px; border-radius: var(--radius-sm); background: transparent; border: none; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); }
+    .comp-tab:hover { color: var(--text-main); }
+    .comp-tab.active { background: var(--bg-surface); color: var(--text-main); box-shadow: var(--shadow-sm); font-weight: 600; }
+
+    /* DASHBOARD RF-10 a RF-14 */
+    .scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-bottom: 32px; }
+    .score-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; position: relative; box-shadow: var(--shadow-sm); transition: var(--transition); overflow: hidden; border-top: 4px solid var(--border); }
+    .score-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .score-card.highlight { border-color: var(--accent-primary); border-top-color: var(--accent-primary); box-shadow: 0 4px 12px rgba(37,99,235,0.1); }
+    .score-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+    .score-name { font-size: 16px; font-weight: 600; margin-bottom: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+    .score-value { font-size: 48px; font-weight: 700; font-family: var(--font); line-height: 1; color: var(--text-main); letter-spacing: -1px; }
+    .score-value span { font-size: 16px; color: var(--text-muted); font-weight: 500; letter-spacing: 0; }
+
+    /* MATRIX TABLE RF-11 */
+    .matrix-table { width: 100%; border-collapse: collapse; text-align: center; }
+    .matrix-table th { background: var(--bg-body); padding: 12px; font-weight: 600; font-size: 13px; border-bottom: 2px solid var(--border); color: var(--text-secondary); }
+    .matrix-table th:first-child { text-align: left; }
+    .matrix-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; background: var(--bg-surface); }
+    .matrix-table td:first-child { text-align: left; font-weight: 500; color: var(--text-main); }
+    .icon-si { color: var(--success); font-size: 18px; }
+    .icon-parcial { color: var(--warning); font-size: 18px; }
+    .icon-no { color: var(--danger); font-size: 18px; }
+
+    /* BRECHAS RF-12 */
+    .gaps-list { display: flex; flex-direction: column; gap: 12px; }
+    .gap-item { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--bg-surface); border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+    .gap-name { font-weight: 500; font-size: 14px; color: var(--text-main); }
+    .gap-pts { font-family: var(--mono); font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 20px; background: var(--danger-light); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    /* PLAN */
+    .priority-section { margin-bottom: 32px; }
+    .priority-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 0 4px; }
+    .priority-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .priority-dot.high { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-light); }
+    .priority-dot.medium { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-light); }
+    .priority-title { font-size: 14px; font-weight: 600; color: var(--text-main); }
+
+    .task-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 12px; cursor: pointer; transition: var(--transition); box-shadow: var(--shadow-sm); }
+    .task-card:hover { border-color: var(--accent-primary); box-shadow: var(--shadow-md); transform: translateX(2px); }
+    .task-card.completed { opacity: 0.6; background: var(--bg-body); box-shadow: none; }
+    .task-card.completed:hover { transform: none; border-color: var(--border); }
+    .task-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; gap: 16px; }
+    .task-left { display: flex; gap: 16px; flex: 1; }
+    .task-checkbox { width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: var(--transition); margin-top: 2px; background: var(--bg-surface); }
+    .task-card:hover .task-checkbox:not(.checked) { border-color: var(--accent-muted); }
+    .task-checkbox.checked { background: var(--success); border-color: var(--success); color: #fff; }
+    .task-title { font-size: 15px; font-weight: 500; line-height: 1.5; color: var(--text-main); flex: 1; }
+    .task-points { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--success); background: var(--success-light); padding: 4px 10px; border-radius: 20px; white-space: nowrap; border: 1px solid rgba(16,185,129,0.2); }
+    .task-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-left: 38px; }
+    .task-meta span { display: flex; align-items: center; gap: 6px; }
+
+    /* TOASTS */
+    #toasts { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 12px; z-index: 9999; }
+    .toast { background: var(--bg-sidebar); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid var(--success); padding: 16px 20px; border-radius: var(--radius); font-size: 14px; display: flex; gap: 12px; box-shadow: var(--shadow-lg); font-weight: 500; animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: #ffffff; align-items: center; }
+    .toast.warn { border-left-color: var(--warning); }
+    .toast.error { border-left-color: var(--danger); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); background: var(--bg-surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); }
+    .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; filter: grayscale(100%); }
+    .empty-state-text { font-size: 15px; font-weight: 500; }
+
+    /* IMPRESIÓN RF-14 */
+    .print-header { display: flex; justify-content: space-between; align-items: flex-end; }
+    .dash-meta { text-align: right; display: flex; flex-direction: column; gap: 8px; }
+    .last-sync { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+
+    @media print {
+      body { background: white; color: black; }
+      .sidebar, .topbar, .no-print, .nav-actions, .dash-actions, .comp-tabs { display: none !important; }
+      .main { overflow: visible; display: block; }
+      .content { padding: 0; overflow: visible; }
+      .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+      .score-card { border-top: 4px solid black !important; }
+      .matrix-table th { background: #f0f0f0; color: black !important;}
+      .score-value { color: black !important; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><span>B</span></div>
+      <div class="sidebar-brand">
+        <span class="sidebar-title">Bluease</span>
+        <span class="sidebar-subtitle">GEO Tracker</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" id="nav-1" onclick="goScreen(1)">
+        <div class="nav-icon">1</div>
+        <span class="nav-label">Configuración</span>
+        <div class="nav-status"></div>
+      </div>
+      <div class="nav-item" id="nav-2" onclick="goScreen(2)">
+        <div class="nav-icon">2</div>
+        <span class="nav-label">Análisis</span>
+        <div class="nav-status"></div>
+      </div>
+      <div class="nav-item" id="nav-3" onclick="goScreen(3)">
+        <div class="nav-icon">3</div>
+        <span class="nav-label">Dashboard</span>
+        <div class="nav-status"></div>
+      </div>
+      <div class="nav-item" id="nav-4" onclick="goScreen(4)">
+        <div class="nav-icon">4</div>
+        <span class="nav-label">Plan de acción</span>
+        <div class="nav-status"></div>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-item active" id="topbar-item">Configuración</span>
+        </div>
+      </div>
+      
+      <div class="topbar-right">
+        <div class="progress-dots">
+          <div class="progress-dot active" id="dot-1"></div>
+          <div class="progress-dot" id="dot-2"></div>
+          <div class="progress-dot" id="dot-3"></div>
+          <div class="progress-dot" id="dot-4"></div>
+        </div>
+        
+        <div class="topbar-divider"></div>
+        
+        <button class="theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+          <svg class="theme-icon sun-icon" viewBox="0 0 24 24" style="display:none"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"/></svg>
+          <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M21.725 14.725a9.75 9.75 0 01-13.45-13.45.75.75 0 01.928.928 8.25 8.25 0 1011.594 11.594.75.75 0 01.928.928z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <div class="screen active" id="screen-1">
+        <div class="screen-header">
+          <h1>Configuración inicial</h1>
+          <p>Define tu empresa y los competidores a analizar. El GEO Score se calculará de forma comparativa.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Mi empresa</span>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>Nombre de la empresa</label>
+              <input type="text" class="fi" id="my-name" value="Bluease.io" placeholder="Ej: Mi Empresa">
+            </div>
+            <div>
+              <label>Dominio web</label>
+              <input type="text" class="fi" id="my-domain" value="bluease.io" placeholder="ejemplo.com">
+            </div>
+          </div>
+          <div class="form-full">
+            <label>Sector / categoría</label>
+            <select class="fs" id="my-sector">
+              <option>Sostenibilidad en eventos</option>
+              <option>SaaS B2B</option>
+              <option>Consultoría medioambiental</option>
+              <option>Tecnología</option>
+              <option>Marketing Digital</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Competidores a analizar</span>
+            <span class="card-badge">Opcional</span>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr><th>Nombre</th><th>Dominio</th><th>Sector</th><th></th></tr>
+              </thead>
+              <tbody id="comp-body"></tbody>
+            </table>
+          </div>
+          <button class="add-row" onclick="addComp()" style="margin-top: 16px;">
+            <span>+</span> Añadir competidor
+          </button>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" style="padding:12px 28px;font-size:14px" onclick="startAnalysis()">
+            Iniciar análisis
+            <span>→</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-2">
+        <div class="screen-header">
+          <h1>Análisis GEO</h1>
+          <p>Revisión automática de estructura web y verificación manual de presencia en IA generativa.</p>
+        </div>
+
+        <div id="prog-section" style="display:none;margin-bottom:24px">
+          <div class="card">
+            <div class="prog-wrap">
+              <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+              <span class="prog-lbl" id="prog-lbl">0%</span>
+            </div>
+            <div class="status-list" id="scraping-status"></div>
+          </div>
+        </div>
+
+        <div class="comp-tabs" id="comp-tabs"></div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Análisis de <span id="comp-cur-name" style="color:var(--text-primary)"></span></span>
+            <button class="btn btn-secondary btn-sm" onclick="reanalizarCompetidor()" id="btn-reanalizar" style="display:none">
+              ↻ Reanalizar scraping
+            </button>
+          </div>
+
+          <div style="margin-bottom:28px">
+            <div class="section-label">
+              <svg class="theme-icon" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Estructura web (Scraping Automático)
+            </div>
+            <div class="check-list" id="auto-checks"></div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:32px;margin-top:32px">
+            <div class="section-label">
+              <svg class="theme-icon" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              Input manual (lo que no se puede automatizar)
+            </div>
+
+            <div class="manual-progress-wrap">
+              <div class="mp-info">
+                <span class="mp-title">Progreso del análisis manual</span>
+                <span class="mp-desc" id="mp-text">0 de 11 métricas completadas</span>
+              </div>
+              <div class="mp-bar-bg"><div class="mp-bar-fill" id="mp-fill" style="width: 0%"></div></div>
+            </div>
+
+            <div id="dynamic-fallback-questions"></div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Aparece en respuestas de ChatGPT?</div>
+              <div class="q-help">ℹ️ Hacer la búsqueda manualmente y marcar</div>
+              <div class="options" data-q="chatgpt">
+                <button class="option" onclick="selectOpt(this,'chatgpt','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'chatgpt','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'chatgpt','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Aparece en respuestas de Perplexity?</div>
+              <div class="q-help">ℹ️ Hacer la búsqueda manualmente y marcar</div>
+              <div class="options" data-q="perplexity">
+                <button class="option" onclick="selectOpt(this,'perplexity','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'perplexity','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'perplexity','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Aparece en respuestas de Google SGE?</div>
+              <div class="q-help">ℹ️ Hacer la búsqueda manualmente y marcar</div>
+              <div class="options" data-q="googlesge">
+                <button class="option" onclick="selectOpt(this,'googlesge','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'googlesge','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'googlesge','no')">No</button>
+              </div>
+            </div>
+            
+            <div class="manual-q">
+              <div class="q-label">¿Tiene casos de uso / éxito?</div>
+              <div class="q-help">ℹ️ Buscar sección de clientes o casos de éxito</div>
+              <div class="options" data-q="casos">
+                <button class="option" onclick="selectOpt(this,'casos','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'casos','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'casos','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Tiene artículos comparativos?</div>
+              <div class="q-help">ℹ️ Revisar el blog manualmente</div>
+              <div class="options" data-q="comparativos">
+                <button class="option" onclick="selectOpt(this,'comparativos','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'comparativos','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'comparativos','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Cita fuentes y datos verificados en sus artículos?</div>
+              <div class="q-help">ℹ️ Revisar 2-3 artículos</div>
+              <div class="options" data-q="fuentes">
+                <button class="option" onclick="selectOpt(this,'fuentes','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'fuentes','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'fuentes','no')">No</button>
+              </div>
+            </div>
+            
+            <div class="manual-q">
+              <div class="q-label">¿Tiene glosario o definiciones?</div>
+              <div class="q-help">ℹ️ Buscar página de glosario</div>
+              <div class="options" data-q="glosario">
+                <button class="option" onclick="selectOpt(this,'glosario','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'glosario','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'glosario','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Alt text descriptivo en imágenes?</div>
+              <div class="q-help">ℹ️ Inspeccionar imágenes de la web</div>
+              <div class="options" data-q="alttext">
+                <button class="option" onclick="selectOpt(this,'alttext','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'alttext','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'alttext','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">¿Tiene Schema Markup / datos estructurados?</div>
+              <div class="q-help">ℹ️ Usar Schema Markup Validator de Google</div>
+              <div class="options" data-q="schema">
+                <button class="option" onclick="selectOpt(this,'schema','si')">Sí</button>
+                <button class="option" onclick="selectOpt(this,'schema','parcial')">Parcialmente</button>
+                <button class="option" onclick="selectOpt(this,'schema','no')">No</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">Valoración general del contenido</div>
+              <div class="q-help">ℹ️ Criterio subjetivo del revisor</div>
+              <div class="star-rating" id="star-container">
+                <button class="star-btn" onclick="selectStar(1)">★</button>
+                <button class="star-btn" onclick="selectStar(2)">★</button>
+                <button class="star-btn" onclick="selectStar(3)">★</button>
+                <button class="star-btn" onclick="selectStar(4)">★</button>
+                <button class="star-btn" onclick="selectStar(5)">★</button>
+              </div>
+            </div>
+
+            <div class="manual-q">
+              <div class="q-label">Notas libres</div>
+              <div class="q-help">ℹ️ Observaciones adicionales para el informe</div>
+              <textarea class="fi" id="notas-input" placeholder="Escribe aquí tus observaciones..." onchange="updateNotas(this)"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-actions">
+          <button class="btn btn-secondary" onclick="goScreen(1)">Anterior</button>
+          
+          <button class="btn btn-ghost" onclick="guardarProgreso()" style="margin-left:auto;margin-right:12px;">
+            💾 Guardar borrador
+          </button>
+          
+          <button class="btn btn-primary" onclick="goScreen(3)">
+            Ver Dashboard
+            <span>→</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-3">
+        <div class="screen-header print-header">
+          <div>
+            <h1>Dashboard Comparativo GEO</h1>
+            <p>Puntuación ponderada y análisis de brechas competitivas.</p>
+          </div>
+          <div class="dash-meta">
+            <span class="last-sync" id="last-sync-date">Última actualización: --</span>
+            <button class="btn btn-primary btn-sm no-print" onclick="window.print()">⬇ Exportar PDF</button>
+          </div>
+        </div>
+
+        <div class="scores-grid" id="scores-grid"></div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Desglose de Métricas (RF-11)</span></div>
+          <div class="tw">
+            <table class="matrix-table" id="matrix-table"></table>
+          </div>
+          <div class="legend" style="margin-top:16px;font-size:13px;color:var(--text-muted);display:flex;gap:16px;">
+            <span><span class="icon-si">✅</span> Sí (Completado)</span>
+            <span><span class="icon-parcial">⚠️</span> Parcialmente</span>
+            <span><span class="icon-no">❌</span> No (Cero puntos)</span>
+          </div>
+        </div>
+
+        <div class="card" style="page-break-before: always;">
+          <div class="card-header"><span class="card-title">Brechas Competitivas (RF-12)</span></div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Métricas en las que la competencia tiene mejor puntuación que nuestra empresa, ordenadas por impacto.</p>
+          <div class="gaps-list" id="brechas-list"></div>
+        </div>
+
+        <div class="dash-actions no-print" style="margin-top:32px;display:flex;gap:12px;">
+          <button class="btn btn-secondary" onclick="goScreen(2)">Volver al Análisis</button>
+          <button class="btn btn-primary" onclick="goScreen(4)">Ver plan →</button>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-4">
+        <div class="screen-header">
+          <h1>Plan de acción GEO</h1>
+          <p>Ruta priorizada de acciones para mejorar tu posicionamiento en modelos de lenguaje.</p>
+        </div>
+
+        <div id="plan-container"></div>
+
+        <div class="plan-actions">
+          <button class="btn btn-secondary" onclick="goScreen(3)">Dashboard</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+
+/* CONSTANTES Y CONFIGURACIÓN RF-10 */
+const SK = 'bluease_geo_unified_v5'; // V5 para reset limpio
+const W = {
+  chatgpt: 15, perplexity: 15, googlesge: 10, faq: 10, headings: 8,
+  casos: 8, comparativos: 7, blog: 7, fuentes: 5, glosario: 5, alttext: 5, schema: 5
+};
+const W_PARCIAL = {
+  chatgpt: 8, perplexity: 8, googlesge: 5, faq: 5, headings: 4,
+  casos: 4, comparativos: 3, blog: 3, fuentes: 2, glosario: 2, alttext: 2, schema: 2
+};
+const ACCENTS = ['#0f172a','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+const SCREENS = { 1:'Configuración', 2:'Análisis', 3:'Dashboard', 4:'Plan de acción' };
+
+/* ESTADO GLOBAL */
+let S = {
+  screen:1, activeComp:0,
+  config:{
+    myCompany:{name:'Bluease.io',domain:'bluease.io',sector:'Sostenibilidad en eventos'},
+    competitors:[
+      {name:'EcoEvents Pro',domain:'ecoevents.io',sector:'Eventos sostenibles'},
+      {name:'GreenMice',domain:'greenmice.com',sector:'MICE sostenible'}
+    ]
+  },
+  analysis:{scraping:[], metrics:{}, done:false, lastSync: null},
+  plan:{}
+};
+
+/* UTILIDADES */
+function esc(v){const d=document.createElement('div');d.textContent=String(v||'');return d.innerHTML}
+function save(){ try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {} }
+function load(){
+  try{
+    const r=localStorage.getItem(SK); if(!r)return false;
+    const v=JSON.parse(r);
+    // Config: restaurar myCompany y competitors en profundidad
+    if(v.config){
+      if(v.config.myCompany) S.config.myCompany={...S.config.myCompany,...v.config.myCompany};
+      if(Array.isArray(v.config.competitors)) S.config.competitors=v.config.competitors;
+    }
+    // Analysis: restaurar todo en profundidad (scraping es array, metrics es objeto)
+    if(v.analysis){
+      if(Array.isArray(v.analysis.scraping)) S.analysis.scraping=v.analysis.scraping;
+      if(v.analysis.metrics && typeof v.analysis.metrics==='object') S.analysis.metrics={...v.analysis.metrics};
+      if(typeof v.analysis.done==='boolean') S.analysis.done=v.analysis.done;
+      if(v.analysis.lastSync) S.analysis.lastSync=v.analysis.lastSync;
+    }
+    if(v.plan && typeof v.plan==='object') S.plan={...S.plan,...v.plan};
+    // BUGFIX: usar != null en lugar de if(v.screen) para no perder screen/activeComp = 0
+    if(v.screen != null) S.screen=v.screen;
+    if(v.activeComp != null) S.activeComp=v.activeComp;
+    return true;
+  }catch(e){console.warn('[Bluease] Error al cargar estado:',e);return false}
+}
+
+// Obtener estado real de una métrica
+function getSt(idx, qId, sc) {
+  const manual = S.analysis.metrics[idx + '_' + qId];
+  if (manual === 'si' || manual === 'parcial' || manual === 'no') return manual;
+  // Automático si no hay manual
+  const hasSc = sc && !sc.error;
+  if (qId === 'blog' && hasSc) return sc.blog ? 'si' : (sc.isSPA ? 'parcial' : 'no');
+  if (qId === 'faq' && hasSc) return sc.faq ? 'si' : (sc.isSPA ? 'parcial' : 'no');
+  if (qId === 'headings' && hasSc) return sc.h ? 'si' : 'no';
+  return 'no';
+}
+
+function score(idx){
+  let p = 0;
+  const sc = S.analysis.scraping[idx];
+  
+  ['chatgpt', 'perplexity', 'googlesge', 'faq', 'headings', 'casos', 'comparativos', 'blog', 'fuentes', 'glosario', 'alttext', 'schema'].forEach(q => {
+     const status = getSt(idx, q, sc);
+     if (status === 'si') p += W[q];
+     else if (status === 'parcial') p += W_PARCIAL[q];
+  });
+
+  return Math.min(100, p);
+}
+
+/* ─────────────────────────────────────────────────────────
+   TEMA CLARO / OSCURO
+   ───────────────────────────────────────────────────────── */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  const sunIcon = document.querySelector('.sun-icon');
+  const moonIcon = document.querySelector('.moon-icon');
+
+  if (isDark) {
+    html.removeAttribute('data-theme');
+    localStorage.setItem('bluease_theme', 'light');
+    sunIcon.style.display = 'none';
+    moonIcon.style.display = 'block';
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    localStorage.setItem('bluease_theme', 'dark');
+    sunIcon.style.display = 'block';
+    moonIcon.style.display = 'none';
+  }
+}
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('bluease_theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.querySelector('.sun-icon').style.display = 'block';
+    document.querySelector('.moon-icon').style.display = 'none';
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   MOTOR DE SCRAPING MULTI-PROXY (INTACTO)
+   ───────────────────────────────────────────────────────── */
+
+const SCRAPER_API_KEY = '79add5b717645b2ed1f04cfbcb1ce4c2';
+
+const PROXY_CHAIN = [
+  {
+    name: 'AllOrigins',
+    build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    parse: async (r) => { const d = await r.json(); return d.contents; },
+    timeout: 12000,
+    free: true,
+  },
+  {
+    name: 'CorsProxy.io',
+    build: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    parse: async (r) => r.text(),
+    timeout: 10000,
+    free: true,
+  },
+  {
+    name: 'CodeTabs',
+    build: (u) => `https://api.codetabs.com/v1/proxy?quest=${u}`,
+    parse: async (r) => r.text(),
+    timeout: 10000,
+    free: true,
+  },
+  {
+    name: 'ThingProxy',
+    build: (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
+    parse: async (r) => r.text(),
+    timeout: 10000,
+    free: true,
+  },
+  {
+    name: 'ScraperAPI-basic',
+    build: (u) => `https://api.scraperapi.com/?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(u)}`,
+    parse: async (r) => r.text(),
+    timeout: 35000,
+    free: false,
+  },
+  {
+    name: 'ScraperAPI-render',
+    build: (u) => `https://api.scraperapi.com/?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(u)}&render=true`,
+    parse: async (r) => r.text(),
+    timeout: 60000,
+    free: false,
+  },
+];
+
+function normalizeUrl(raw) {
+  let u = raw.trim();
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
+function fetchWithTimeout(url, ms) {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout (${ms/1000}s)`)), ms))
+  ]);
+}
+
+async function tryProxy(proxy, targetUrl) {
+  const proxyUrl = proxy.build(targetUrl);
+  const response = await fetchWithTimeout(proxyUrl, proxy.timeout);
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const html = await proxy.parse(response);
+  if (!html || html.length < 200) throw new Error('Respuesta vacía o demasiado corta');
+
+  if (html.includes('Error 403') || html.includes('Access Denied') ||
+      html.includes('cloudflare') && html.includes('captcha')) {
+    throw new Error('Web bloqueada por protección anti-bot');
+  }
+
+  return html;
+}
+
+async function fetchHtmlConProxy(rawUrl) {
+  const targetUrl = normalizeUrl(rawUrl);
+  const errores = [];
+
+  for (const proxy of PROXY_CHAIN) {
+    try {
+      console.log(`[Scraping] Intentando ${proxy.name} → ${targetUrl}`);
+      const html = await tryProxy(proxy, targetUrl);
+      console.log(`[Scraping] ✓ ${proxy.name} exitoso (${html.length} chars)`);
+      return html;
+    } catch (err) {
+      const msg = `${proxy.name}: ${err.message}`;
+      errores.push(msg);
+      console.warn(`[Scraping] ✗ ${msg}`);
+    }
+  }
+
+  throw new Error(`Todos los proxies fallaron. Último error: ${errores[errores.length - 1]}`);
+}
+
+async function fetchConReintentos(rawUrl, maxReintentos = 2) {
+  let ultimoError = null;
+  for (let i = 0; i < maxReintentos; i++) {
+    try {
+      return await fetchHtmlConProxy(rawUrl);
+    } catch (err) {
+      ultimoError = err;
+      if (i < maxReintentos - 1) {
+        await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      }
+    }
+  }
+  throw ultimoError;
+}
+
+function detectarFaq(doc) {
+  if (doc.querySelector('[itemtype*="FAQPage"]')) return true;
+
+  const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+  const tieneJsonLdFaq = scripts.some(s => {
+    try {
+      const c = s.textContent.toLowerCase().replace(/\s+/g, '');
+      return c.includes('"@type":"faqpage"') ||
+             (c.includes('"@type":"question"') && c.includes('"acceptedanswer"'));
+    } catch(e) { return false; }
+  });
+  if (tieneJsonLdFaq) return true;
+
+  const selectoresFaq = [
+    '#faq','#faqs','#preguntas','#preguntas-frecuentes','#questions',
+    '.faq','.faqs','.faq-section','.faq-container','.faq-list','.faq-block',
+    '.preguntas','.preguntas-frecuentes',
+    '.qa-section','.qa-list','.qa-block',
+    '[data-section="faq"]','[data-block="faq"]',
+    'section.faq','section.faqs','div.faq','div.faqs',
+  ].join(',');
+  if (doc.querySelector(selectoresFaq)) return true;
+
+  const headings = Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+  const kwsHeading = [
+    'preguntas frecuentes', 'frequently asked questions',
+    'faq', 'faqs', 'q&a', 'questions & answers', 'questions and answers',
+    'preguntas habituales', 'dudas frecuentes', 'preguntas comunes',
+    'common questions', 'got questions', '¿tienes dudas', '¿tienes preguntas',
+    'todo lo que necesitas saber', 'lo que nos preguntan',
+  ];
+  if (headings.some(h => kwsHeading.some(kw => h.textContent.toLowerCase().includes(kw)))) return true;
+
+  const navLinks = Array.from(doc.querySelectorAll('nav a, header a, .navbar a, .nav a, .menu a, .header a'));
+  const kwsNavFaq = ['faq', 'faqs', 'ayuda', 'help', 'preguntas', 'support', 'soporte'];
+  const tieneNavFaq = navLinks.some(a => {
+    const texto = (a.textContent || '').trim().toLowerCase();
+    const rawHref = (a.getAttribute('href') || '').toLowerCase();
+    if (kwsNavFaq.some(kw => texto === kw || texto.startsWith(kw + ' '))) return true;
+    if (/^\/?(faq|faqs|preguntas|ayuda|help)\/?/i.test(rawHref)) return true;
+    return false;
+  });
+  if (tieneNavFaq) return true;
+
+  const bodyText = (doc.body || doc.documentElement).textContent;
+
+  const enlaces = Array.from(doc.querySelectorAll('a[href]'));
+  const linkFaqDedicado = enlaces.find(a => {
+    const raw  = (a.getAttribute('href') || '').toLowerCase();
+    const texto = (a.textContent || '').trim().toLowerCase();
+    const rutaFaq = /^\/?(faq|faqs|preguntas-frecuentes|preguntas|help-center|centro-de-ayuda)\/?/i.test(raw);
+    const textoFaq = texto === 'faq' || texto === 'faqs' || texto === 'preguntas frecuentes';
+    return rutaFaq || textoFaq;
+  });
+
+  const detalles = doc.querySelectorAll('details').length;
+
+  const dtCount = doc.querySelectorAll('dt').length;
+  const ddCount = doc.querySelectorAll('dd').length;
+  const tieneDlFaq = dtCount >= 3 && ddCount >= 3;
+
+  const acordeones = doc.querySelectorAll(
+    '.accordion, .accordion-item, .collapse, [data-toggle="collapse"], ' +
+    '[data-bs-toggle="collapse"], [aria-expanded], .expandable, .collapsible'
+  ).length;
+
+  const preguntasExplicitas = (bodyText.match(/¿[^?]{10,120}\?/g) || []).length;
+  const preguntasIngles     = (bodyText.match(/\b(what|how|why|when|where|who|which|can|does|is|are|do)\b[^?]{5,100}\?/gi) || []).length;
+  const totalPreguntas = preguntasExplicitas + preguntasIngles;
+
+  const ariaFaq = Array.from(doc.querySelectorAll('[aria-label]')).some(el => {
+    const label = (el.getAttribute('aria-label') || '').toLowerCase();
+    return label.includes('faq') || label.includes('pregunta') || label.includes('frequently');
+  });
+
+  if (linkFaqDedicado)                    return true;
+  if (detalles >= 3)                      return true;
+  if (tieneDlFaq)                         return true;
+  if (acordeones >= 3 && totalPreguntas >= 3) return true;
+  if (totalPreguntas >= 6)                return true;
+  if (ariaFaq)                            return true;
+  if (acordeones >= 5)                    return true;
+
+  return false;
+}
+
+function detectarBlog(doc) {
+  const hoy      = new Date();
+  const añoActual = hoy.getFullYear();
+  const añoPasado = añoActual - 1;
+  const regexFecha = new RegExp(`\\b(${añoActual}|${añoPasado})\\b`, 'i');
+
+  const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+  const tieneSchemaBlog = scripts.some(s => {
+    try {
+      const c = s.textContent.toLowerCase().replace(/\s+/g, '');
+      return c.includes('"@type":"blog"') || c.includes('"@type":"blogposting"') ||
+             c.includes('"@type":"newsarticle"') || c.includes('"@type":"article"');
+    } catch(e) { return false; }
+  });
+  if (tieneSchemaBlog) return true;
+
+  if (doc.querySelector('meta[property="og:type"][content="article"], meta[property="og:type"][content="blog"]')) return true;
+
+  const metaGen = doc.querySelector('meta[name="generator"]');
+  if (metaGen && /wordpress|ghost|medium|substack|contentful|drupal|joomla/i.test(metaGen.getAttribute('content') || '')) return true;
+
+  const enlaces = Array.from(doc.querySelectorAll('a[href]'));
+
+  const navEls = doc.querySelectorAll('nav a, header a, .navbar a, .nav a, .menu a, .navigation a');
+  const tieneNavBlog = Array.from(navEls).some(a => {
+    const texto = (a.textContent || '').trim().toLowerCase();
+    const href  = (a.href  || '').toLowerCase();
+    return texto === 'blog' || texto === 'noticias' || texto === 'news' ||
+           texto === 'insights' || texto === 'recursos' ||
+           /\/blog\/?$|\/noticias\/?$|\/news\/?$/i.test(href);
+  });
+  if (tieneNavBlog) return true;
+
+  const tienePatronPost = enlaces.some(a =>
+    /\/(blog|news|articles|posts|noticias|insights)\/[\w-]{3,}/i.test(a.href || '')
+  );
+  if (tienePatronPost) return true;
+
+  const kwsBlog = ['/blog', '/noticias', '/news', '/insights', '/actualidad',
+                   '/articulos', '/recursos', '/magazine', '/publicaciones', '/media', '/press'];
+  const linkBlog = enlaces.find(a => {
+    const href = (a.href || '').toLowerCase();
+    return kwsBlog.some(kw => href.includes(kw));
+  });
+  const tieneEnlaceBlog = !!linkBlog;
+
+  const selectoresArticulo = 'article, .post, .blog-post, .entry, .news-item, .type-post, .blog-item, .card-article, .article-card, .post-card';
+  const articulos = Array.from(doc.querySelectorAll(selectoresArticulo));
+  const hayArticulos = articulos.length > 0;
+
+  const selectoresFecha = 'time, .date, .post-date, .entry-date, .published, .updated, .article-date, meta[property="article:published_time"]';
+  const elementosFecha  = Array.from(doc.querySelectorAll(selectoresFecha));
+  let contenidoFresco   = false;
+  if (elementosFecha.length > 0) {
+    contenidoFresco = elementosFecha.some(el => {
+      const txt = (el.textContent + ' ' + (el.getAttribute('datetime') || el.getAttribute('content') || '')).toLowerCase();
+      return txt.includes(String(añoActual)) || txt.includes(String(añoPasado)) ||
+             /hace \d+ (día|dia|mes|semana|hora)/i.test(txt) ||
+             /\d+ (days|months|weeks|hours) ago/i.test(txt);
+    });
+  } else if (hayArticulos) {
+    contenidoFresco = articulos.some(art => regexFecha.test(art.textContent));
+  }
+
+  if (hayArticulos && contenidoFresco) return true;
+  if (tieneEnlaceBlog && contenidoFresco) return true;
+  if (tieneEnlaceBlog && hayArticulos) return true; 
+
+  return false;
+}
+
+function detectarEncabezados(doc) {
+  const cv = (sel) =>
+    Array.from(doc.querySelectorAll(sel))
+      .filter(el => el.textContent.replace(/\s+/g, '').trim().length > 2)
+      .length;
+
+  const h1 = cv('h1');
+  const h2 = cv('h2');
+  const h3 = cv('h3');
+
+  const h1Extra = cv('.title, .page-title, .entry-title, .hero-title, .main-title');
+  const h2Extra = cv('.subtitle, .section-title, .section-heading');
+
+  const h1Total = Math.max(h1, h1Extra > 0 && h1 === 0 ? 1 : 0);
+  const h2Total = Math.max(h2, h2Extra > 0 && h2 === 0 ? 1 : 0);
+
+  const ok = h1Total >= 1 && (h2Total > 0 || h3 > 0);
+
+  return { h1: h1Total, h2: h2Total, h3, ok };
+}
+
+async function scrapeSingle(domain) {
+  const r = {
+    blog: false, h: false, faq: false,
+    h1: 0, h2: 0, h3: 0,
+    error: null, isSPA: false, tieneJsHeavy: false,
+  };
+
+  const baseUrl = normalizeUrl(domain);
+
+  try {
+    const html = await fetchConReintentos(domain);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const scriptsCount = doc.querySelectorAll('script[src]').length;
+    const tieneReact    = /data-reactroot|__NEXT_DATA__|_reactFiber/i.test(html);
+    const tieneVue      = /data-v-\w+|__vue_component|__VUE__/i.test(html);
+    const tieneAngular  = /ng-version|_nghost-|ng-app/i.test(html);
+    const tieneNuxt     = /__NUXT__|nuxt-loading/i.test(html);
+    r.tieneJsHeavy = scriptsCount > 6 || tieneReact || tieneVue || tieneAngular || tieneNuxt;
+
+    r.blog = detectarBlog(doc);
+    r.faq  = detectarFaq(doc);
+    const hh = detectarEncabezados(doc);
+    r.h1 = hh.h1; r.h2 = hh.h2; r.h3 = hh.h3; r.h = hh.ok;
+
+    if (!r.blog) {
+      const kwsBlog = ['blog', 'noticias', 'news', 'insights', 'actualidad',
+                       'articulos', 'recursos', 'publicaciones', 'media', 'press', 'posts'];
+      const enlacesBlog = Array.from(doc.querySelectorAll('a[href]'));
+
+      const linkAlBlog = enlacesBlog.find(a => {
+        const raw   = (a.getAttribute('href') || '').toLowerCase();
+        const texto = (a.textContent || '').toLowerCase().trim();
+        return kwsBlog.some(kw =>
+          raw.startsWith(`/${kw}`) || raw.includes(`/${kw}/`) ||
+          raw.includes(`/${kw}?`) || texto === kw
+        );
+      });
+
+      if (linkAlBlog) {
+        const urlBlog = resolveUrl(linkAlBlog.href, baseUrl);
+        if (urlBlog && urlBlog !== baseUrl) {
+          try {
+            const blogHtml = await fetchConReintentos(urlBlog, 1);
+            const blogDoc  = parser.parseFromString(blogHtml, 'text/html');
+            r.blog = detectarBlog(blogDoc);
+            if (r.blog) console.log(`[Deep crawl] Blog encontrado en: ${urlBlog}`);
+          } catch (e) {
+            console.warn(`[Deep crawl] Blog falló (${urlBlog}):`, e.message);
+          }
+        }
+      }
+    }
+
+    if (!r.faq) {
+      const kwsFaq  = ['/faq', '/faqs', '/preguntas', '/preguntas-frecuentes',
+                       '/help', '/help-center', '/ayuda', '/soporte', '/support'];
+      const enlacesFaq = Array.from(doc.querySelectorAll('a[href]'));
+
+      const linkFaq = enlacesFaq.find(a => {
+        const raw = (a.getAttribute('href') || '').toLowerCase();
+        return kwsFaq.some(kw => raw.startsWith(kw) || raw.includes(kw + '/') || raw.includes(kw + '?'));
+      });
+
+      if (linkFaq) {
+        const urlFaq = resolveUrl(linkFaq.href, baseUrl);
+        if (urlFaq && urlFaq !== baseUrl) {
+          try {
+            const faqHtml = await fetchConReintentos(urlFaq, 1);
+            const faqDoc  = parser.parseFromString(faqHtml, 'text/html');
+            r.faq = detectarFaq(faqDoc);
+            if (r.faq) console.log(`[Deep crawl] FAQ encontrado en: ${urlFaq}`);
+          } catch (e) {
+            console.warn(`[Deep crawl] FAQ falló (${urlFaq}):`, e.message);
+          }
+        }
+      }
+    }
+
+    if (!r.blog && !r.faq && r.tieneJsHeavy) r.isSPA = true;
+
+  } catch (e) {
+    r.error = e.message;
+    if (/timeout|network|cors|failed to fetch/i.test(e.message)) r.isSPA = true;
+  }
+
+  return r;
+}
+
+function resolveUrl(href, base) {
+  if (!href) return null;
+  try {
+    if (/^https?:\/\//i.test(href)) return href;
+    return new URL(href, base).href;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   LOGICA DE UI Y FLUJO
+   ───────────────────────────────────────────────────────── */
+async function runAnalysis(){
+  const entities = [S.config.myCompany,...S.config.competitors];
+
+  document.getElementById('prog-section').style.display = 'block';
+  // BUGFIX: Solo inicializar scraping si no hay datos ya cargados desde localStorage
+  if (!S.analysis.scraping || S.analysis.scraping.length !== entities.length) {
+    S.analysis.scraping = new Array(entities.length).fill(null);
+  }
+  
+  // FIX RF-08: Nunca sobreescribir las métricas manuales si ya existen.
+  S.analysis.metrics = S.analysis.metrics || {}; 
+
+  const stEl = document.getElementById('scraping-status');
+  stEl.innerHTML = entities.map((e,i) =>
+    `<div class="status-item" id="si-${i}">
+       <div class="status-dot"></div>
+       <span class="si-name">${esc(e.name || e.domain || '—')}</span>
+       <span class="si-info" id="si-info-${i}" style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:var(--mono)"></span>
+     </div>`
+  ).join('');
+
+  let done = 0;
+  const setProg = (d) => {
+    const p = Math.round(d / entities.length * 100);
+    document.getElementById('prog-fill').style.width = p + '%';
+    document.getElementById('prog-lbl').textContent = p + '%';
+  };
+  setProg(0);
+
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
+    const el    = document.getElementById('si-' + i);
+    const infoEl = document.getElementById('si-info-' + i);
+    el?.classList.add('running');
+    if (infoEl) infoEl.textContent = 'analizando…';
+
+    let r;
+    if (!e.domain || e.domain.trim() === '') {
+      r = { error: 'Sin dominio configurado', isSPA: false };
+    } else {
+      try {
+        r = await scrapeSingle(e.domain);
+      } catch (err) {
+        r = { error: err.message, isSPA: false };
+      }
+    }
+    S.analysis.scraping[i] = r;
+
+    el?.classList.remove('running');
+    el?.classList.add(r.error ? 'error' : 'done');
+
+    if (infoEl) {
+      if (r.error) {
+        infoEl.textContent = r.isSPA ? 'web JS pesado' : 'error de acceso';
+        infoEl.style.color = 'var(--danger)';
+      } else {
+        const detected = [r.blog && '📝 Blog', r.faq && '❓ FAQ', r.h && '🔖 H1/H2'].filter(Boolean);
+        infoEl.textContent = detected.length ? detected.join(' · ') : 'sin señales';
+        infoEl.style.color = detected.length ? 'var(--success)' : 'var(--text-muted)';
+      }
+    }
+
+    done++;
+    setProg(done);
+
+    if (S.activeComp === i) renderAnalysis(i);
+  }
+
+  S.analysis.done = true;
+  // RF-13 Fecha de actualización
+  const now = new Date();
+  S.analysis.lastSync = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+  save();
+
+  renderTabs();
+
+  const exitos = S.analysis.scraping.filter(r => !r.error).length;
+  const spAs = S.analysis.scraping.filter(r => r.isSPA).length;
+  const conError = S.analysis.scraping.filter(r => r.error).length;
+
+  let mensaje = `Análisis completado: ${exitos}/${entities.length} exitosos`;
+  if (spAs > 0) mensaje += ` (${spAs} webs con JS intensivo)`;
+  if (conError > 0) mensaje += `. ${conError} con errores - usa verificación manual`;
+
+  toast(exitos === entities.length ? '✓' : '⚠️', mensaje, exitos === entities.length ? '' : 'warn', 5000);
+}
+
+function renderAnalysis(idx){
+  const sc = S.analysis.scraping[idx];
+  const autoEl = document.getElementById('auto-checks');
+  const dynamicFallback = document.getElementById('dynamic-fallback-questions');
+  const btnReanalizar = document.getElementById('btn-reanalizar');
+
+  if (!sc) {
+    const entities = [S.config.myCompany,...S.config.competitors];
+    autoEl.innerHTML = `
+      <div class="check-item"><span class="check-icon warn">⏳</span><span class="check-text">Pendiente de analizar</span></div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="analizarIndividual(${idx})">
+          ▶ Analizar ahora
+        </button>
+      </div>
+    `;
+    if (dynamicFallback) dynamicFallback.innerHTML = '';
+    if (btnReanalizar) btnReanalizar.style.display = 'none';
+    return;
+  }
+
+  if (btnReanalizar) {
+    btnReanalizar.style.display = 'inline-flex';
+  }
+
+  // LA MAGIA DE LA INYECCIÓN DINÁMICA (Si hay error o SPA)
+  if (sc.error || sc.isSPA) {
+    if (dynamicFallback) {
+      dynamicFallback.innerHTML = `
+        <div style="margin-bottom: 32px; padding: 24px; background: var(--warning-light); border: 1px dashed var(--warning); border-radius: var(--radius-lg);">
+          <div class="section-label" style="color: #b45309; margin-bottom: 16px;">
+            <svg class="theme-icon" style="width:16px;height:16px;display:inline;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Scraping Fallido: Completa estas 3 métricas a mano
+          </div>
+          
+          <div class="manual-q">
+            <div class="q-label" style="color: #92400e;">¿Tiene blog activo con contenido reciente?</div>
+            <div class="options" data-q="blog">
+              <button class="option" onclick="selectOpt(this,'blog','si')">Sí</button>
+              <button class="option" onclick="selectOpt(this,'blog','parcial')">Parcialmente</button>
+              <button class="option" onclick="selectOpt(this,'blog','no')">No</button>
+            </div>
+          </div>
+
+          <div class="manual-q">
+            <div class="q-label" style="color: #92400e;">¿Tiene sección FAQ / Preguntas Frecuentes?</div>
+            <div class="options" data-q="faq">
+              <button class="option" onclick="selectOpt(this,'faq','si')">Sí</button>
+              <button class="option" onclick="selectOpt(this,'faq','parcial')">Parcialmente</button>
+              <button class="option" onclick="selectOpt(this,'faq','no')">No</button>
+            </div>
+          </div>
+
+          <div class="manual-q" style="margin-bottom: 0;">
+            <div class="q-label" style="color: #92400e;">¿Tiene estructura de encabezados H1/H2?</div>
+            <div class="options" data-q="headings">
+              <button class="option" onclick="selectOpt(this,'headings','si')">Sí</button>
+              <button class="option" onclick="selectOpt(this,'headings','parcial')">Parcialmente</button>
+              <button class="option" onclick="selectOpt(this,'headings','no')">No</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  } else {
+    if (dynamicFallback) dynamicFallback.innerHTML = '';
+  }
+
+  // Zona de estado automático (arriba)
+  if (sc.error) {
+    let errorMsg = `<div class="check-item"><span class="check-icon fail">✕</span><span class="check-text"><strong>Error:</strong> ${esc(sc.error)}</span></div>`;
+    if (sc.isSPA) {
+      errorMsg += `<div class="check-item" style="margin-top:8px"><span class="check-icon warn">⚠️</span><span class="check-text">Esta web usa JavaScript intensivo.</span></div>`;
+    }
+    errorMsg += `<div class="check-item" style="margin-top:12px;font-size:12px;color:var(--text-muted)">💡 <strong>Aviso:</strong> Completa las preguntas extra que han aparecido abajo en la sección manual.</div>`;
+    autoEl.innerHTML = errorMsg;
+  } else {
+    let blogHtml = `<div class="check-item"><span class="check-icon ${sc.blog?'ok':'fail'}">${sc.blog?'✓':'✕'}</span><span class="check-text"><strong>Blog:</strong> ${sc.blog?'Contenido detectado':'No detectado'}</span></div>`;
+    const headingHtml = `<div class="check-item"><span class="check-icon ${sc.h?'ok':'fail'}">${sc.h?'✓':'✕'}</span><span class="check-text"><strong>Encabezados:</strong> ${sc.h?'Estructura correcta':'Estructura deficiente'}</span></div>`;
+    const faqHtml = `<div class="check-item"><span class="check-icon ${sc.faq?'ok':'fail'}">${sc.faq?'✓':'✕'}</span><span class="check-text"><strong>FAQ:</strong> ${sc.faq?'Sección detectada':'No detectada'}</span></div>`;
+    autoEl.innerHTML = blogHtml + headingHtml + faqHtml;
+  }
+
+  // Refrescar botones y estilos de las preguntas manuales
+  document.querySelectorAll('[data-q]').forEach(g => {
+    const q = g.getAttribute('data-q');
+    const v = S.analysis.metrics[idx + '_' + q];
+    g.querySelectorAll('.option').forEach(b => b.className = 'option');
+    if (!v) return;
+    const btns = g.querySelectorAll('.option');
+    if (v === 'si' && btns[0]) btns[0].classList.add('selected-yes');
+    else if (v === 'parcial' && btns[1]) btns[1].classList.add('selected-partial');
+    else if (v === 'no' && btns[btns.length - 1]) btns[btns.length - 1].classList.add('selected-no');
+  });
+
+  // Actualizar barra de progreso dinámica (11 si todo OK, 14 si hay que completar las extras)
+  let filled = 0;
+  let baseFields = ['chatgpt', 'perplexity', 'googlesge', 'casos', 'comparativos', 'fuentes', 'glosario', 'alttext', 'schema', 'estrellas', 'notas'];
+  let totalFields = 11;
+  
+  if (sc.error || sc.isSPA) {
+    baseFields.push('blog', 'faq', 'headings');
+    totalFields = 14;
+  }
+
+  baseFields.forEach(f => {
+    const val = S.analysis.metrics[idx + '_' + f];
+    if (val !== undefined && val !== null && val !== '') filled++;
+  });
+  
+  const progressText = document.getElementById('mp-text');
+  const progressFill = document.getElementById('mp-fill');
+  if (progressText) progressText.textContent = `${filled} de ${totalFields} métricas completadas`;
+  if (progressFill) progressFill.style.width = `${(filled/totalFields)*100}%`;
+
+  const stars = S.analysis.metrics[idx + '_estrellas'] || 0;
+  document.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i < stars);
+  });
+
+  const notasInput = document.getElementById('notas-input');
+  if (notasInput) notasInput.value = S.analysis.metrics[idx + '_notas'] || '';
+}
+
+function selectOpt(btn,qId,val){
+  const g = btn.closest('[data-q]');
+  g.querySelectorAll('.option').forEach(b => b.className = 'option');
+  
+  if (val === 'si') btn.classList.add('selected-yes');
+  else if (val === 'no') btn.classList.add('selected-no');
+  else btn.classList.add('selected-partial'); 
+
+  S.analysis.metrics[S.activeComp + '_' + qId] = val;
+  save();
+
+  renderAnalysis(S.activeComp);
+  if (S.screen === 3) renderDashboard();
+}
+
+function selectStar(val) {
+  S.analysis.metrics[S.activeComp + '_estrellas'] = val;
+  save();
+  renderAnalysis(S.activeComp);
+}
+
+function updateNotas(el) {
+  S.analysis.metrics[S.activeComp + '_notas'] = el.value;
+  save();
+  renderAnalysis(S.activeComp);
+}
+
+function renderTabs(){
+  const entities = [S.config.myCompany, ...S.config.competitors];
+  document.getElementById('comp-tabs').innerHTML = entities.map((e, i) => {
+    const sc     = S.analysis.scraping[i];
+    const pts    = S.analysis.done ? score(i) : null;
+    const estado = !sc ? '' : sc.error ? ' 🔴' : sc.isSPA ? ' ⚠️' : ' ✅';
+    const badge  = pts !== null ? `<span style="font-size:10px;opacity:.7;margin-left:4px">${pts}pts</span>` : '';
+    return `<button class="comp-tab${i === S.activeComp ? ' active' : ''}" onclick="selTab(${i})">
+      ${esc(e.name || 'Entidad ' + i)}${estado}${badge}
+    </button>`;
+  }).join('');
+  document.getElementById('comp-cur-name').textContent = entities[S.activeComp]?.name || '';
+}
+
+function selTab(idx){
+  S.activeComp = idx;
+  document.querySelectorAll('.comp-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  const name = [S.config.myCompany, ...S.config.competitors][idx]?.name;
+  document.getElementById('comp-cur-name').textContent = name || '';
+  renderAnalysis(idx);
+}
+
+async function analizarIndividual(idx){
+  const entities = [S.config.myCompany,...S.config.competitors];
+  const entity = entities[idx];
+
+  if (!entity || !entity.domain) {
+    toast('⚠️', 'Este competidor no tiene dominio configurado', 'warn');
+    return;
+  }
+
+  S.activeComp = idx;
+  renderTabs();
+
+  const autoEl = document.getElementById('auto-checks');
+  autoEl.innerHTML = `<div class="check-item"><span class="check-icon warn">⏳</span><span class="check-text">Analizando ${entity.domain}...</span></div>`;
+
+  try {
+    const r = await scrapeSingle(entity.domain);
+    S.analysis.scraping[idx] = r;
+    save();
+    renderAnalysis(idx);
+    toast(r.error ? '⚠️' : '✓', r.error ? `Análisis completado con error: ${r.error}` : `Análisis completado para ${entity.name || entity.domain}`, r.error ? 'warn' : '');
+  } catch (e) {
+    S.analysis.scraping[idx] = { error: e.message, isSPA: false };
+    save();
+    renderAnalysis(idx);
+    toast('✕', 'Error al analizar: ' + e.message, 'error');
+  }
+}
+
+async function reanalizarCompetidor(){
+  const idx = S.activeComp;
+  const entities = [S.config.myCompany,...S.config.competitors];
+  const entity = entities[idx];
+
+  if (!entity || !entity.domain) {
+    toast('⚠️', 'No hay dominio para reanalizar', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('btn-reanalizar');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '↻ Analizando...';
+  }
+
+  S.analysis.scraping[idx] = null;
+  renderAnalysis(idx);
+
+  try {
+    const r = await scrapeSingle(entity.domain);
+    S.analysis.scraping[idx] = r;
+    save();
+    renderAnalysis(idx);
+    toast(r.error ? '⚠️' : '✓', r.error ? `Reanálisis completado con error: ${r.error}` : `Reanálisis completado para ${entity.name || entity.domain}`, r.error ? 'warn' : '');
+  } catch (e) {
+    toast('✕', 'Error al reanalizar: ' + e.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '↻ Reanalizar scraping';
+    }
+  }
+}
+
+function renderDashboard(){
+  const entities = [S.config.myCompany, ...S.config.competitors];
+  
+  // RF-13 Fecha Sync
+  document.getElementById('last-sync-date').textContent = S.analysis.lastSync ? `Última actualización: ${S.analysis.lastSync}` : 'Análisis no completado';
+
+  // RF-10 Scores
+  const scores = entities.map((e,i)=>({name:e.name||'Entidad '+i, sc:score(i), i}));
+  
+  document.getElementById('scores-grid').innerHTML = scores.map((s,i)=>{
+    return `<div class="score-card${i===0?' highlight':''}">
+      <div class="score-accent"></div>
+      <div class="score-label">${i===0?'Nuestra empresa':'Competidor '+(i)}</div>
+      <div class="score-name">${esc(s.name)}</div>
+      <div class="score-value">${s.sc}<span>/100</span></div>
+    </div>`;
+  }).join('');
+
+  // RF-11 Matriz
+  let matrixHtml = '<thead><tr><th>Métrica</th>';
+  entities.forEach(e => matrixHtml += `<th>${esc(e.name||e.domain)}</th>`);
+  matrixHtml += '</tr></thead><tbody>';
+  
+  const mList = [
+    {id:'chatgpt', n:'Aparece en ChatGPT'},
+    {id:'perplexity', n:'Aparece en Perplexity'},
+    {id:'googlesge', n:'Aparece en Google SGE'},
+    {id:'faq', n:'Tiene FAQ estructurada'},
+    {id:'headings', n:'Usa encabezados H1/H2'},
+    {id:'casos', n:'Casos de uso / éxito'},
+    {id:'comparativos', n:'Artículos comparativos'},
+    {id:'blog', n:'Contenido actualizado'},
+    {id:'fuentes', n:'Cita fuentes y datos'},
+    {id:'glosario', n:'Glosario o definiciones'},
+    {id:'alttext', n:'Alt text en imágenes'},
+    {id:'schema', n:'Schema Markup'}
+  ];
+
+  mList.forEach(m => {
+     matrixHtml += `<tr><td>${m.n}</td>`;
+     entities.forEach((_, i) => {
+        const sc = S.analysis.scraping[i];
+        const val = getSt(i, m.id, sc);
+        const icon = val==='si'?'<span class="icon-si">✅</span>':(val==='parcial'?'<span class="icon-parcial">⚠️</span>':'<span class="icon-no">❌</span>');
+        matrixHtml += `<td>${icon}</td>`;
+     });
+     matrixHtml += `</tr>`;
+  });
+  document.getElementById('matrix-table').innerHTML = matrixHtml + '</tbody>';
+
+  // RF-12 Brechas
+  let gaps = [];
+  mList.forEach(m => {
+     const mySc = S.analysis.scraping[0];
+     let mySt = getSt(0, m.id, mySc);
+     let myPts = mySt === 'si' ? W[m.id] : (mySt === 'parcial' ? W_PARCIAL[m.id] : 0);
+     
+     let maxCompPts = 0;
+     for(let i=1; i<entities.length; i++) {
+        const cSc = S.analysis.scraping[i];
+        let cSt = getSt(i, m.id, cSc);
+        let cPts = cSt === 'si' ? W[m.id] : (cSt === 'parcial' ? W_PARCIAL[m.id] : 0);
+        if(cPts > maxCompPts) maxCompPts = cPts;
+     }
+     
+     if(maxCompPts > myPts) {
+         gaps.push({name: m.n, pts: maxCompPts - myPts});
+     }
+  });
+
+  gaps.sort((a,b) => b.pts - a.pts);
+
+  document.getElementById('brechas-list').innerHTML=gaps.length
+    ? gaps.map(g=>`<div class="gap-item"><span class="gap-name">${esc(g.name)}</span><span class="gap-pts">-${g.pts} pts respecto al líder</span></div>`).join('')
+    : `<div class="empty-state" style="padding:20px"><div class="empty-state-icon" style="font-size:32px">✓</div><div class="empty-state-text" style="color:var(--success)">Excelente, superas o igualas todas las métricas de la competencia.</div></div>`;
+}
+
+// Función para el botón Guardar Borrador (RF-08)
+function guardarProgreso() {
+  save(); // Guarda en LocalStorage
+  toast('💾', 'Progreso guardado. Puedes cerrar la app y continuar luego.');
+}
+
+/* TABLA INICIAL Y NAVEGACION */
+function renderTable(){
+  const tb=document.getElementById('comp-body'); tb.innerHTML='';
+  S.config.competitors.forEach((c,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input class="tdi" placeholder="Nombre" value="${esc(c.name)}"></td><td><input class="tdi" placeholder="dominio.com" value="${esc(c.domain)}"></td><td><input class="tdi" placeholder="Sector" value="${esc(c.sector)}"></td><td><button class="btn btn-danger btn-sm" onclick="removeComp(this)">Eliminar</button></td>`;
+    tr.querySelectorAll('.tdi').forEach(inp=>inp.addEventListener('input',()=>{syncDOM();save();}));
+    tb.appendChild(tr);
+  });
+}
+function addComp(){ syncDOM(); S.config.competitors.push({name:'',domain:'',sector:''}); renderTable(); save(); }
+function removeComp(b){ syncDOM(); const i=Array.from(document.querySelectorAll('#comp-body tr')).indexOf(b.closest('tr')); if(i>=0){S.config.competitors.splice(i,1);renderTable();save();} }
+function syncDOM(){
+  S.config.myCompany.name=document.getElementById('my-name').value;
+  S.config.myCompany.domain=document.getElementById('my-domain').value;
+  S.config.myCompany.sector=document.getElementById('my-sector').value;
+  // Solo sobreescribir competitors si hay filas reales en el DOM
+  // (evita destruir datos cargados cuando el DOM aún no está pintado)
+  const rows = Array.from(document.querySelectorAll('#comp-body tr'));
+  if(rows.length > 0 || S.config.competitors.length === 0){
+    S.config.competitors=rows.map(r=>{const i=r.querySelectorAll('.tdi');return{name:i[0].value,domain:i[1].value,sector:i[2].value};});
+  }
+}
+function goScreen(n){
+  // Solo sincronizar el DOM si la pantalla 1 ya está activa y visible
+  // (evita sobreescribir datos recién cargados desde localStorage con DOM vacío)
+  const screen1Active = document.getElementById('screen-1')?.classList.contains('active');
+  if(screen1Active){ syncDOM(); }
+  save();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(s=>s.classList.remove('active','done'));
+  document.querySelectorAll('.progress-dot').forEach((d,i)=>{
+    d.classList.remove('active','done');
+    if(i+1<n) d.classList.add('done');
+    else if(i+1===n) d.classList.add('active');
+  });
+  document.getElementById('screen-'+n).classList.add('active');
+  document.getElementById('nav-'+n).classList.add('active');
+  for(let i=1;i<n;i++) document.getElementById('nav-'+i)?.classList.add('done');
+  document.getElementById('topbar-item').textContent=SCREENS[n];
+  S.screen=n;
+  if(n===1) renderTable();
+  if(n===2){
+    renderTabs();
+    renderAnalysis(S.activeComp);
+    // Si el análisis ya está completo (datos en memoria), mostrar barra de progreso con 100%
+    if(S.analysis.done && S.analysis.scraping && S.analysis.scraping.length > 0){
+      const prog = document.getElementById('prog-section');
+      if(prog) {
+        prog.style.display = 'block';
+        const fill = document.getElementById('prog-fill');
+        const lbl = document.getElementById('prog-lbl');
+        if(fill) fill.style.width = '100%';
+        if(lbl) lbl.textContent = '100%';
+        // Reconstruir lista de estado
+        const entities = [S.config.myCompany,...S.config.competitors];
+        const stEl = document.getElementById('scraping-status');
+        if(stEl) stEl.innerHTML = entities.map((e,i)=>{
+          const r = S.analysis.scraping[i];
+          const cls = !r ? '' : r.error ? 'error' : 'done';
+          return `<div class="status-item ${cls}" id="si-${i}">
+            <div class="status-dot"></div>
+            <span class="si-name">${esc(e.name||e.domain||'—')}</span>
+            <span class="si-info" id="si-info-${i}" style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:var(--mono)">${
+              !r ? 'pendiente' : r.error ? (r.isSPA?'web JS pesado':'error de acceso') :
+              [r.blog&&'📝 Blog',r.faq&&'❓ FAQ',r.h&&'🔖 H1/H2'].filter(Boolean).join(' · ')||'sin señales'
+            }</span>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+  if(n===3) renderDashboard();
+  window.scrollTo(0,0);
+}
+function startAnalysis(){
+  syncDOM(); 
+  // Reset completo del análisis al iniciar uno nuevo explícitamente
+  S.analysis.scraping=[]; 
+  S.analysis.done=false; 
+  S.activeComp=0; 
+  save();
+  goScreen(2); renderTabs(); runAnalysis();
+}
+
+/* INIT */
+function init(){
+  initTheme();
+  const restored = load();
+  if(restored) toast('✓','Sesión recuperada');
+
+  // Restaurar campos de Mi Empresa
+  document.getElementById('my-name').value = S.config.myCompany.name;
+  document.getElementById('my-domain').value = S.config.myCompany.domain;
+
+  // Restaurar sector: si el valor no existe como opción, añadirla dinámicamente
+  const sectorEl = document.getElementById('my-sector');
+  const sectorVal = S.config.myCompany.sector;
+  const optExists = Array.from(sectorEl.options).some(o => o.value === sectorVal || o.text === sectorVal);
+  if(!optExists && sectorVal){
+    const opt = document.createElement('option');
+    opt.value = sectorVal; opt.text = sectorVal;
+    sectorEl.appendChild(opt);
+  }
+  sectorEl.value = sectorVal;
+
+  // Renderizar tabla de competidores ANTES de goScreen para que el DOM esté listo
+  renderTable();
+
+  const n = S.screen || 1;
+  goScreen(n);
+  // Solo relanzar análisis si no hay ningún dato de scraping guardado
+  if(n===2 && !S.analysis.done && (!S.analysis.scraping || S.analysis.scraping.every(x=>x===null))){
+    runAnalysis();
+  }
+}
+init();
+</script>
+</body>
+</html>
