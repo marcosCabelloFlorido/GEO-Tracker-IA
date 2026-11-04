@@ -505,12 +505,22 @@ function getSt(idx, qId, sc) {
   if (sc && sc.blockedByAntiBot) return null;
 
   const hasSc = sc && !sc.error;
-  if (qId === 'blog' && hasSc) return sc.blog ? 'si' : (sc.isSPA ? 'parcial' : 'no');
-  if (qId === 'faq' && hasSc) return sc.faq ? 'si' : (sc.isSPA ? 'parcial' : 'no');
+
+  /* Nivel guardado ('si'|'parcial'|'no') si existe; si no (objeto antiguo de localStorage), el booleano de siempre */
+  const esNivel = (n) => n === 'si' || n === 'parcial' || n === 'no';
+  const nivelOBool = (nivel, bool, suavizaSPA) => {
+    const n = esNivel(nivel) ? nivel : (bool ? 'si' : 'no');
+    return (n === 'no' && suavizaSPA && sc.isSPA) ? 'parcial' : n;
+  };
+
+  if (qId === 'blog' && hasSc) return nivelOBool(sc.blogNivel, sc.blog, true);
+  if (qId === 'faq' && hasSc) return nivelOBool(sc.faqNivel, sc.faq, true);
   if (qId === 'headings' && hasSc) return sc.h ? 'si' : 'no';
-  if (qId === 'casos' && hasSc) return sc.casos ? 'si' : (sc.isSPA ? 'parcial' : 'no');
-  if (qId === 'glosario' && hasSc) return sc.glosario ? 'si' : (sc.isSPA ? 'parcial' : 'no');
-  if (qId === 'schema' && hasSc) return sc.schema ? 'si' : 'no';
+  if (qId === 'casos' && hasSc) return nivelOBool(sc.casosNivel, sc.casos, true);
+  if (qId === 'glosario' && hasSc) return nivelOBool(undefined, sc.glosario, true);
+  if (qId === 'schema' && hasSc) return nivelOBool(sc.schemaNivel, sc.schema, false);
+  if (qId === 'fuentes' && hasSc && esNivel(sc.fuentesNivel)) return sc.fuentesNivel;
+  if (qId === 'comparativos' && hasSc && esNivel(sc.comparativosNivel)) return sc.comparativosNivel;
   if (qId === 'alttext' && hasSc) {
     if (sc.alttext === null) return null;
     return sc.alttext ? 'si' : (sc.isSPA ? 'parcial' : 'no');
@@ -576,22 +586,89 @@ function fetchWithTimeout(url, ms) {
     .finally(() => clearTimeout(timer));
 }
 
-async function fetchHtmlConProxy(rawUrl, onStatus = null) {
+/* Estado del Worker: null = sin comprobar, true = soporta /api/fetch (JSON), false = Worker antiguo (?url=) */
+let WORKER_API_FETCH = null;
+
+/* Error con respuesta real del sitio: no se reintenta con allorigins (que solo sirve para fallos de red/timeout) */
+function errorSitio(msg, noReintentar = false) {
+  const e = new Error(msg);
+  e.sitio = true;
+  e.noReintentar = noReintentar;
+  return e;
+}
+
+/* Detecta páginas de desafío anti-bot. Solo detecta y reporta: no intenta saltarlas.
+   'captcha' suelto solo cuenta en HTML corto, para no marcar webs normales con un formulario reCAPTCHA */
+function esPaginaAntiBot(html) {
+  if (!html) return false;
+  if (/cf-chl|just a moment|attention required|px-captcha/i.test(html)) return true;
+  return html.length < 30000 && /captcha/i.test(html);
+}
+
+/* Interpreta el JSON { ok, status, finalUrl, html } del Worker y devuelve el cuerpo o lanza el error que toque */
+function evaluarRespuestaWorker(data, tipo) {
+  const status = Number(data.status) || 0;
+  const cuerpo = typeof data.html === 'string' ? data.html : '';
+  if (status === 403 || status === 429 || status === 503 || (tipo === 'html' && esPaginaAntiBot(cuerpo))) throw errorSitio('Bloqueado por Anti-Bot', true);
+  if (status === 404 || status === 410) throw errorSitio('Página no encontrada', true);
+  if (status >= 500) throw errorSitio(`Error HTTP ${status}`);
+  if (status >= 400) throw errorSitio(`Error HTTP ${status}`, true);
+  if (!status || (data.ok === false && !cuerpo)) throw new Error('Worker sin respuesta del sitio');
+  return cuerpo;
+}
+
+/* Lee la URL a través del Worker: primero /api/fetch (JSON con estado HTTP) y, si el Worker es antiguo (404), la ruta ?url= de siempre */
+async function fetchViaWorker(targetUrl, render, tipo) {
+  const enc = encodeURIComponent(targetUrl);
+
+  /* Un Worker antiguo (ya detectado) no sabe renderizar: no se cae a la ruta ?url=, que devolvería el HTML sin renderizar */
+  if (render && WORKER_API_FETCH === false) throw Object.assign(new Error('Render no soportado por el Worker'), { sinRender: true });
+
+  if (WORKER_API_FETCH !== false) {
+    const resp = await fetchWithTimeout(`${MY_WORKER}/api/fetch?url=${enc}${render ? '&render=1' : ''}`, render ? 30000 : 12000);
+    if (resp.status === 404 || (render && resp.status === 501)) {
+      if (render) throw Object.assign(new Error('Render no soportado por el Worker'), { sinRender: true });
+      WORKER_API_FETCH = false;
+    } else {
+      const crudo = await resp.text();
+      let data = null;
+      if (/json/i.test(resp.headers.get('content-type') || '')) { try { data = JSON.parse(crudo); } catch (e) { data = null; } }
+      if (data && typeof data === 'object' && 'status' in data) {
+        WORKER_API_FETCH = true;
+        return evaluarRespuestaWorker(data, tipo);
+      }
+      /* Worker antiguo que ignora la ruta y devuelve el HTML tal cual */
+      if (render) throw Object.assign(new Error('Render no soportado por el Worker'), { sinRender: true });
+      if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
+      if (tipo === 'html' && esPaginaAntiBot(crudo)) throw errorSitio('Bloqueado por Anti-Bot', true);
+      return crudo;
+    }
+  }
+
+  const response = await fetchWithTimeout(`${MY_WORKER}?url=${enc}`, 12000);
+  if (response.status === 403 || response.status === 429 || response.status === 503) throw errorSitio('Bloqueado por Anti-Bot', true);
+  if (response.status === 404 || response.status === 410) throw errorSitio('Página no encontrada', true);
+  if (!response.ok) throw new Error(`Worker HTTP ${response.status}`);
+  const html = await response.text();
+  if (tipo === 'html' && esPaginaAntiBot(html)) throw errorSitio('Bloqueado por Anti-Bot', true);
+  return html;
+}
+
+/* opciones: { render: bool (HTML renderizado por el Worker), tipo: 'html' | 'texto' (robots, sitemap, llms), respaldo: bool (permitir allorigins) } */
+async function fetchHtmlConProxy(rawUrl, onStatus = null, opciones = {}) {
+  const { render = false, tipo = 'html', respaldo = true } = opciones;
   const targetUrl = normalizeUrl(rawUrl);
   if (!targetUrl.includes('.')) throw new Error('Falta el .com o extensión en el dominio');
 
-  if (onStatus) onStatus('Conectando con Worker…');
+  if (onStatus) onStatus(render ? 'Renderizando con Worker…' : 'Conectando con Worker…');
   let html = null;
 
   try {
-    const response = await fetchWithTimeout(`${MY_WORKER}?url=${encodeURIComponent(targetUrl)}`, 12000);
-    if (!response.ok) throw new Error(`Worker HTTP ${response.status}`);
-    html = await response.text();
-    if (html.includes('Error 403') || html.includes('Access Denied') || (html.toLowerCase().includes('cloudflare') && html.toLowerCase().includes('captcha'))) {
-      throw new Error('Bloqueado por Anti-Bot');
-    }
-    if (!html || html.length < 150) throw new Error('Respuesta vacía');
+    html = await fetchViaWorker(targetUrl, render, tipo);
+    if (tipo === 'html' && (!html || html.length < 150)) throw new Error('Respuesta vacía');
   } catch (err) {
+    /* Si el sitio respondió (bloqueo, 404, 5xx) o se pidió render, allorigins no aporta nada */
+    if (err.sitio || render || !respaldo) throw err;
     if (onStatus) onStatus('Worker falló. Usando respaldo…');
     const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
     const fbResponse = await fetchWithTimeout(fallbackUrl, 15000);
@@ -600,18 +677,18 @@ async function fetchHtmlConProxy(rawUrl, onStatus = null) {
     html = fbData.contents;
   }
 
-  if (!html || html.length < 200) throw new Error('Contenido final vacío');
+  if (!html || (tipo === 'html' && html.length < 200)) throw new Error('Contenido final vacío');
   if (onStatus) onStatus('✓ HTML recibido');
   return html;
 }
 
-async function fetchConReintentos(rawUrl, maxReintentos = 2, onStatus = null) {
+async function fetchConReintentos(rawUrl, maxReintentos = 2, onStatus = null, opciones = {}) {
   let ultimoError = null;
   for (let i = 0; i < maxReintentos; i++) {
-    try { return await fetchHtmlConProxy(rawUrl, onStatus); }
+    try { return await fetchHtmlConProxy(rawUrl, onStatus, opciones); }
     catch (err) {
       ultimoError = err;
-      if (err.message.includes('Falta el .com')) throw err;
+      if (err.message.includes('Falta el .com') || err.noReintentar || err.sinRender) throw err;
       if (i < maxReintentos - 1) {
         if (onStatus) onStatus(`Reintentando (${i + 2}/${maxReintentos})…`);
         await new Promise(r => setTimeout(r, 1500 * (i + 1)));
@@ -635,65 +712,130 @@ function isChrome(el) {
   return !!el.closest('nav, header, footer, aside, .sidebar, .widget, [role="navigation"], [role="banner"], [role="contentinfo"], .navbar, .nav, .menu, .footer, .header');
 }
 
-function detectarSchemaGeneral(doc) {
-  return doc.querySelectorAll('script[type="application/ld+json"]').length > 0;
+/* Texto visible de un nodo sin script/style/noscript (y sin los selectores extra que se indiquen) */
+function textoVisible(el, excluir = '') {
+  if (!el) return '';
+  const clon = el.cloneNode(true);
+  clon.querySelectorAll('script, style, noscript, template' + (excluir ? ', ' + excluir : '')).forEach(n => n.remove());
+  return (clon.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
+/* Mismo host (sin www) entre dos URLs; false si alguna no es válida */
+function mismoHost(a, b) {
+  try { return new URL(a).hostname.replace(/^www\./, '') === new URL(b).hostname.replace(/^www\./, ''); }
+  catch (e) { return false; }
+}
+
+/* Orden de niveles para quedarse con el mejor entre varias páginas */
+function mejorNivel(niveles) {
+  const orden = { no: 0, parcial: 1, si: 2 };
+  return niveles.reduce((mejor, n) => (orden[n] > orden[mejor] ? n : mejor), 'no');
+}
+
+/* Enlaces al blog por segmento de ruta (/blog/, /noticias, ...). No casa con /newsletter */
+const RE_BLOG_PATH = /\/(blog|noticias|news|insights|articulos|recursos)(\/|$|\?)/i;
+function esHrefBlog(href) { return RE_BLOG_PATH.test(String(href || '').split('#')[0]); }
+
+/* Lee todos los ld+json: [{ data, texto }] (data = null si el JSON no se puede parsear) */
+function leerJsonLd(doc) {
+  return Array.from(doc.querySelectorAll('script[type="application/ld+json"]')).map(s => {
+    const texto = s.textContent || '';
+    try { return { data: JSON.parse(texto), texto }; } catch (e) { return { data: null, texto }; }
+  });
+}
+
+/* Recorre un JSON-LD (objetos, arrays y @graph) llamando a fn(clave, valor, nodoPadre) en cada propiedad */
+function recorrerJsonLd(nodo, fn, prof = 0) {
+  if (!nodo || typeof nodo !== 'object' || prof > 12) return;
+  if (Array.isArray(nodo)) { nodo.forEach(n => recorrerJsonLd(n, fn, prof + 1)); return; }
+  Object.keys(nodo).forEach(k => { fn(k, nodo[k], nodo); if (nodo[k] && typeof nodo[k] === 'object') recorrerJsonLd(nodo[k], fn, prof + 1); });
+}
+
+/* Todos los @type del documento (JSON-LD incluido @graph y arrays, y microdatos) */
+function tiposSchema(doc) {
+  const tipos = new Set();
+  const anadir = (t) => [].concat(t).forEach(x => {
+    if (typeof x === 'string' && x.trim()) tipos.add(x.trim().replace(/^(https?:\/\/schema\.org\/|schema:)/i, ''));
+  });
+
+  leerJsonLd(doc).forEach(({ data, texto }) => {
+    if (data) { recorrerJsonLd(data, (k, v) => { if (k === '@type') anadir(v); }); return; }
+    /* JSON roto: se rescatan los @type con regex */
+    (texto.match(/"@type"\s*:\s*(\[[^\]]*\]|"[^"]*")/g) || []).forEach(m => (m.match(/"([^"]+)"/g) || []).slice(1).forEach(q => anadir(q.replace(/"/g, ''))));
+  });
+  doc.querySelectorAll('[itemtype*="schema.org/"]').forEach(el => anadir((el.getAttribute('itemtype') || '').split('/').pop()));
+  return Array.from(tipos);
+}
+
+const SCHEMA_TIPOS_SI = ['faqpage', 'article', 'blogposting', 'newsarticle', 'howto', 'product', 'service', 'event', 'review', 'definedtermset'];
+
+/* 'si' con tipos de contenido; 'parcial' con solo tipos básicos (Organization, WebSite, WebPage, BreadcrumbList u otros); 'no' sin schema */
+function nivelSchema(tipos) {
+  if (tipos.some(t => SCHEMA_TIPOS_SI.includes(t.toLowerCase()))) return 'si';
+  return tipos.length ? 'parcial' : 'no';
+}
+
+function detectarSchemaGeneral(doc) {
+  const tipos = tiposSchema(doc);
+  return { nivel: nivelSchema(tipos), tipos };
+}
+
+/* Un enlace a /faq NO cuenta como FAQ por sí solo: se comprueba aparte con hayEnlaceFaq */
+function hayEnlaceFaq(doc) {
+  return Array.from(doc.querySelectorAll('a[href]')).some(a => {
+    const t = a.textContent.trim().toLowerCase();
+    const h = (a.getAttribute('href')||'').toLowerCase();
+    return (t === 'faq' || t === 'faqs' || t === 'preguntas frecuentes' || h.endsWith('/faq') || h.includes('/preguntas-frecuentes'));
+  });
+}
+
+const esTextoPregunta = (t) => (t.startsWith('¿') && t.includes('?')) || t.endsWith('?');
+
+/* Devuelve 'si' | 'parcial' | 'no' según el contenido de la página */
 function detectarFaq(doc) {
   const content = (doc.querySelector('main, article, #content, .content, [role="main"]') || doc.body);
-  if (doc.querySelector('[itemtype*="FAQPage"]')) return true;
-  const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-  if (scripts.some(s => /"faqpage"|"question"/i.test(s.textContent.replace(/\s+/g, '')))) return true;
+  if (doc.querySelector('[itemtype*="FAQPage"]')) return 'si';
+  if (tiposSchema(doc).some(t => t.toLowerCase() === 'faqpage')) return 'si';
 
-  const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
-  const faqKws = ['preguntas frecuentes', 'faq', 'faqs', 'dudas frecuentes', 'preguntas habituales', 'q&a', 'preguntas y respuestas'];
-  if (headings.some(h => faqKws.some(kw => h.textContent.toLowerCase().includes(kw)))) return true;
+  const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(h => !isChrome(h));
+  const questionHeadings = headings.filter(h => esTextoPregunta(h.textContent.trim()));
+  if (questionHeadings.length >= 3) return 'si';
 
-  const questionHeadings = headings.filter(h => {
-     const t = h.textContent.trim();
-     return (t.startsWith('¿') && t.includes('?')) || t.endsWith('?');
-  });
-  if (questionHeadings.length >= 3) return true;
-
-  const hasQuestionTitle = headings.some(h => /¿|\?|por qué elegir|cómo funciona|ventajas/i.test(h.textContent));
+  /* Acordeones: cuentan los que tienen un título en forma de pregunta (títulos distintos, para no contar contenedores anidados) */
   const accordionSelectors = [
      'details', '[class*="accordion"]', '[class*="toggle"]', '[class*="collapse"]', '[class*="faq-item"]',
      '.elementor-accordion-item', '.elementor-toggle-item', '.et_pb_toggle', '.wp-block-pb-accordion-item',
      '[data-bs-toggle="collapse"]', '[data-toggle="collapse"]', '.accordion-panel', '.acc-item', '.MuiAccordion-root'
   ].join(', ');
-  
-  const accordions = content.querySelectorAll(accordionSelectors);
-  if (hasQuestionTitle && accordions.length >= 3) return true;
+  const titulosAcordeon = new Set();
+  content.querySelectorAll(accordionSelectors).forEach(el => {
+    if (isChrome(el)) return;
+    const tituloEl = el.querySelector('summary, h1, h2, h3, h4, h5, h6, button, [class*="title"], [class*="header"], [class*="question"], [class*="heading"]');
+    const t = ((tituloEl || el).textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (/¿|\?|por qué elegir/i.test(t)) titulosAcordeon.add(t);
+  });
+  if (titulosAcordeon.size >= 3) return 'si';
 
-  const text = content.innerText || "";
-  if (/Q:.*A:/i.test(text) || /Pregunta:.*Respuesta:/i.test(text) || /¿.*\?.*(R:|Respuesta:)/i.test(text)) return true;
+  /* Señales débiles: hay una sección que se llama FAQ o un patrón P/R en el texto, pero sin estructura clara */
+  const faqKws = ['preguntas frecuentes', 'faq', 'faqs', 'dudas frecuentes', 'preguntas habituales', 'q&a', 'preguntas y respuestas'];
+  if (headings.some(h => faqKws.some(kw => h.textContent.toLowerCase().includes(kw)))) return 'parcial';
 
-  const links = Array.from(doc.querySelectorAll('a[href]'));
-  if (links.some(a => {
-     const t = a.textContent.trim().toLowerCase();
-     const h = (a.getAttribute('href')||'').toLowerCase();
-     return (t === 'faq' || t === 'faqs' || t === 'preguntas frecuentes' || h.endsWith('/faq') || h.includes('/preguntas-frecuentes'));
-  })) return true;
+  const text = content.textContent || "";
+  if (/Q:.*A:/i.test(text) || /Pregunta:.*Respuesta:/i.test(text) || /¿.*\?.*(R:|Respuesta:)/i.test(text)) return 'parcial';
 
-  return false;
+  return 'no';
 }
+
 function detectarBlog(doc) {
   const hoy = new Date(); const añoActual = hoy.getFullYear(); const añoPasado = añoActual - 1;
   const regexAno = new RegExp(`\\b(${añoActual}|${añoPasado})\\b`);
 
   if (doc.querySelector('link[type="application/rss+xml"]')) return true;
 
+  /* Texto del área de contenido sin footer, copyright ni textos legales (el "© 2025" no es un post) */
   const tieneContenidoReciente = (documento) => {
     const area = getContentArea(documento);
-    const nodos = Array.from(area.childNodes).filter(n => {
-      if (n.nodeType === 1) {
-        const tag = n.nodeName.toLowerCase();
-        const cls = (n.className || '').toLowerCase();
-        return !['footer', 'nav'].includes(tag) && !cls.includes('footer') && !cls.includes('copyright');
-      }
-      return true;
-    });
-    return regexAno.test(nodos.map(n => n.textContent || '').join(' '));
+    return regexAno.test(textoVisible(area, 'footer, nav, .copyright, [class*="copyright"], [class*="legal"]'));
   };
 
   if (doc.querySelector('meta[property="og:type"][content="article"]') && tieneContenidoReciente(doc)) return true;
@@ -703,8 +845,7 @@ function detectarBlog(doc) {
   if (timeTags.some(t => regexAno.test(t.getAttribute('datetime') || ''))) return true;
 
   const enlaces = Array.from(doc.querySelectorAll('a[href]'));
-  const kwsBlog = ['/blog', '/noticias', '/news', '/insights', '/articulos', '/recursos', '/resources'];
-  const linkBlog = enlaces.find(a => kwsBlog.some(kw => (a.getAttribute('href') || '').toLowerCase().includes(kw)));
+  const linkBlog = enlaces.find(a => esHrefBlog(a.getAttribute('href')));
   if (linkBlog && tieneContenidoReciente(doc)) return true;
 
   const posts = doc.querySelectorAll('article, .post, .blog-post, .type-post, .entry, [class*="post-item"]');
@@ -723,24 +864,38 @@ function detectarEncabezados(doc) {
   return { h1, h2, h3, ok: h1 >= 1 && h2 >= 2 };
 }
 
-function detectarCasos(doc) {
+/* Devuelve 'si' | 'parcial' | 'no'. esPaginaCasos = la página se leyó expresamente como página de casos/clientes (sitemap) */
+function detectarCasos(doc, esPaginaCasos = false) {
   const kwsUrl = ['casos-de-exito', 'caso-de-exito', 'casos-de-uso', 'case-stud', 'success-stor', 'customer-stor', 'testimonial', 'clientes', 'customers', 'clients', 'portfolio', 'resultados'];
   const kwsTexto = ['caso de éxito', 'casos de éxito', 'caso de uso', 'casos de uso', 'nuestros clientes', 'nuestros resultados', 'success stories', 'case studies', 'case study', 'client stories'];
-  const links = Array.from(doc.querySelectorAll('a[href]'));
-  
-  if (links.some(a => {
-    const href = (a.getAttribute('href') || '').toLowerCase();
-    const text = (a.textContent || '').trim().toLowerCase();
-    return kwsUrl.some(kw => href.includes(kw)) || kwsTexto.some(kw => text.includes(kw));
-  })) return true;
+  const selectoresCasos = '.testimonials, .testimonial-section, #testimonials, .case-studies, #case-studies, .case-study, .success-stories, .clients-section, #clients';
 
-  if (doc.querySelector('.testimonials, .testimonial-section, #testimonials, .case-studies, #case-studies, .case-study, .success-stories, .clients-section, #clients')) return true;
+  /* Página de casos leída: cuenta si tiene contenido real (texto suficiente y varios bloques) */
+  if (esPaginaCasos) {
+    const area = getContentArea(doc);
+    const texto = textoVisible(area, 'nav, header, footer, aside');
+    const bloques = Array.from(area.querySelectorAll('h2, h3, article, blockquote, .card, [class*="case"], [class*="testimonial"]')).filter(el => !isChrome(el)).length;
+    if (texto.length >= 500 && bloques >= 2) return 'si';
+  }
+
+  /* Secciones de testimonios/casos con contenido dentro de la página */
+  const seccionConContenido = Array.from(doc.querySelectorAll(selectoresCasos)).some(el => !isChrome(el) && textoVisible(el).length > 80);
+  if (seccionConContenido) return 'si';
 
   const blockquotes = Array.from(doc.querySelectorAll('blockquote')).filter(bq => !isChrome(bq));
   if (blockquotes.length >= 2) {
-    if (blockquotes.some(bq => bq.querySelector('cite, .author, .name, figcaption, footer') || /[-—]\s*\w+/.test(bq.textContent))) return true;
+    if (blockquotes.some(bq => bq.querySelector('cite, .author, .name, figcaption, footer') || /[-—]\s*\w+/.test(bq.textContent))) return 'si';
   }
-  return false;
+
+  /* Solo un enlace (a casos o a "clientes"): señal parcial, no hay contenido que lo confirme */
+  const links = Array.from(doc.querySelectorAll('a[href]'));
+  if (links.some(a => {
+    const href = (a.getAttribute('href') || '').toLowerCase();
+    const text = (a.textContent || '').trim().toLowerCase();
+    return kwsUrl.some(kw => href.includes(kw)) || kwsTexto.some(kw => text.includes(kw)) || text === 'clientes' || text === 'customers';
+  })) return 'parcial';
+
+  return 'no';
 }
 
 function detectarGlosario(doc) {
@@ -968,7 +1123,7 @@ function analizarFechasYArticulos(docs) {
   const maxYear = new Date().getFullYear() + 1;
   const validDates = fechasEncontradas.filter(d => d && !isNaN(d.getTime()) && d.getFullYear() >= 2015 && d.getFullYear() <= maxYear).sort((a, b) => b - a);
 
-  if (validDates.length === 0) return { ultimoPost: null, numUltimoAno: 0 };
+  if (validDates.length === 0) return { ultimoPost: null, numUltimoAno: 0, ultimoPostFecha: null };
 
   const uniqueDates = []; const seen = new Set();
   validDates.forEach(d => {
@@ -980,7 +1135,265 @@ function analizarFechasYArticulos(docs) {
   const latestDate = uniqueDates[0];
   const formatoUI = [latestDate.getDate().toString().padStart(2, '0'), (latestDate.getMonth() + 1).toString().padStart(2, '0'), latestDate.getFullYear()].join('/');
 
-  return { ultimoPost: formatoUI, numUltimoAno: uniqueDates.filter(d => d >= unAnoAtras).length };
+  return { ultimoPost: formatoUI, numUltimoAno: uniqueDates.filter(d => d >= unAnoAtras).length, ultimoPostFecha: latestDate };
+}
+
+/* SPA: casi sin texto visible en el body y con un contenedor típico de framework (#root, #app, #__next, ...) */
+function detectarSPA(doc, html) {
+  if (!doc.body) return false;
+  const texto = textoVisible(doc.body);
+  const marcador = !!doc.querySelector('#root, #app, #__next, [data-reactroot], [ng-version], #__NEXT_DATA__') || /__NEXT_DATA__/.test(html || '');
+  return texto.length < 400 && marcador;
+}
+
+/* Dominios de autoridad: .gov, .gob.es, .europa.eu, .edu, .int (incluye unfccc.int) y organismos concretos */
+const RE_AUTORIDAD = /(^|\.)(gov|edu|int)(\.[a-z]{2})?$|(^|\.)(gob\.es|europa\.eu|iso\.org|ghgprotocol\.org|globalreporting\.org|ipcc\.ch|doi\.org|ine\.es)$/i;
+
+/* 'si' con 3+ citas, 'parcial' con 1-2, 'no' con 0: enlaces salientes a fuentes de autoridad + textos "Fuente: / Source: / Según:" */
+function detectarFuentes(docs, baseUrl) {
+  const enlaces = new Set();
+  let citas = 0;
+  docs.forEach(doc => {
+    if (!doc) return;
+    const area = getContentArea(doc);
+    area.querySelectorAll('a[href]').forEach(a => {
+      if (isChrome(a)) return;
+      const url = resolveUrl(a.getAttribute('href'), baseUrl);
+      if (!url || !/^https?:/i.test(url) || mismoHost(url, baseUrl)) return;
+      try { if (RE_AUTORIDAD.test(new URL(url).hostname)) enlaces.add(url); } catch (e) { /* URL inválida */ }
+    });
+    citas += (textoVisible(area, 'nav, header, footer, aside').match(/(fuente|source|según)\s*:/gi) || []).length;
+  });
+  const total = enlaces.size + citas;
+  return total >= 3 ? 'si' : (total >= 1 ? 'parcial' : 'no');
+}
+
+const RE_COMPARATIVO = /\bvs\.?\b|versus|comparativa|comparaci[oó]n|alternativas? a|mejores .{3,40} para/i;
+
+/* 'si' si algún H1/H2, título de post o enlace propio habla de comparativas; 'parcial' si solo hay una tabla de 3+ columnas */
+function detectarComparativos(docs, baseUrl, titulosPosts = []) {
+  if (titulosPosts.some(t => RE_COMPARATIVO.test(t))) return 'si';
+  let tablaAncha = false;
+  for (const doc of docs) {
+    if (!doc) continue;
+    const area = getContentArea(doc);
+    if (Array.from(area.querySelectorAll('h1, h2')).some(h => !isChrome(h) && RE_COMPARATIVO.test(h.textContent))) return 'si';
+    const hayEnlace = Array.from(doc.querySelectorAll('a[href]')).some(a => {
+      const t = (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      return RE_COMPARATIVO.test(t) && mismoHost(resolveUrl(a.getAttribute('href'), baseUrl) || '', baseUrl);
+    });
+    if (hayEnlace) return 'si';
+    if (Array.from(area.querySelectorAll('table')).some(t => !isChrome(t) && Array.from(t.querySelectorAll('tr')).some(tr => tr.querySelectorAll('th, td').length >= 3))) tablaAncha = true;
+  }
+  return tablaAncha ? 'parcial' : 'no';
+}
+
+/* Quita espacios dobles, descarta textos muy cortos/largos y duplicados; se queda con max elementos */
+function limpiarTextos(lista, max) {
+  const vistos = new Set();
+  const salida = [];
+  lista.forEach(t => {
+    const limpio = String(t || '').replace(/\s+/g, ' ').trim();
+    if (limpio.length < 3 || limpio.length > 200 || vistos.has(limpio)) return;
+    vistos.add(limpio); salida.push(limpio);
+  });
+  return salida.slice(0, max);
+}
+
+/* H2 y H3 del área de contenido, sin cabecera/pie/menús (máx. 25) */
+function extraerTextosH2(docs) {
+  const textos = [];
+  docs.forEach(doc => {
+    if (!doc) return;
+    getContentArea(doc).querySelectorAll('h2, h3').forEach(h => { if (!isChrome(h)) textos.push(h.textContent); });
+  });
+  return limpiarTextos(textos, 25);
+}
+
+/* Preguntas (con ¿ o terminadas en ?) en encabezados, summary y Question de JSON-LD (máx. 15) */
+function extraerPreguntasFaq(docs) {
+  const textos = [];
+  docs.forEach(doc => {
+    if (!doc) return;
+    getContentArea(doc).querySelectorAll('h2, h3, h4, summary').forEach(h => { if (!isChrome(h)) textos.push(h.textContent); });
+    leerJsonLd(doc).forEach(({ data }) => {
+      if (data) recorrerJsonLd(data, (k, v, nodo) => {
+        if (k === 'name' && typeof v === 'string' && [].concat(nodo['@type'] || []).some(t => /question/i.test(String(t)))) textos.push(v);
+      });
+    });
+  });
+  return limpiarTextos(textos.map(t => String(t).replace(/\s+/g, ' ').trim()).filter(t => t.includes('¿') || t.endsWith('?')), 15);
+}
+
+/* Títulos de los posts de la página de blog (máx. 10) */
+function extraerTitulosPosts(doc) {
+  const sel = 'article h1, article h2, article h3, .post h2, .post h3, .blog-post h2, .blog-post h3, .type-post h2, .type-post h3, .entry-title, .post-title, [class*="post-title"], [class*="entry-title"], [class*="blog-title"]';
+  /* El <header> de un post es parte del post; solo se descarta el de la página */
+  const enChrome = (el) => el.closest('nav, footer, aside, .sidebar, .widget, [role="navigation"], [role="contentinfo"]') || (el.closest('header') && !el.closest('article, .post, .blog-post, .type-post, .entry'));
+  return limpiarTextos(Array.from(doc.querySelectorAll(sel)).filter(el => !enChrome(el)).map(el => el.textContent), 10);
+}
+
+/* ── Señales técnicas GEO (informativas, no puntúan) ── */
+
+const BOTS_IA = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'PerplexityBot', 'Google-Extended', 'CCBot'];
+
+/* Agrupa las reglas de robots.txt por User-agent y recoge las líneas Sitemap: */
+function parsearRobots(txt) {
+  const grupos = [];
+  const sitemaps = [];
+  let actual = null, enAgentes = false;
+  txt.split(/\r?\n/).forEach(linea => {
+    const l = linea.replace(/#.*/, '').trim();
+    const m = l.match(/^([a-z-]+)\s*:\s*(.*)$/i);
+    if (!m) return;
+    const campo = m[1].toLowerCase(), valor = m[2].trim();
+    if (campo === 'sitemap') { if (valor) sitemaps.push(valor); return; }
+    if (campo === 'user-agent') {
+      if (!actual || !enAgentes) { actual = { agentes: [], disallow: [] }; grupos.push(actual); }
+      actual.agentes.push(valor.toLowerCase());
+      enAgentes = true;
+      return;
+    }
+    enAgentes = false;
+    if (actual && campo === 'disallow') actual.disallow.push(valor);
+  });
+  return { grupos, sitemaps };
+}
+
+/* Un bot está bloqueado si su grupo (o el grupo * cuando no tiene el suyo) tiene Disallow: / */
+function detectarBotsBloqueados(grupos) {
+  const comodin = grupos.filter(g => g.agentes.includes('*'));
+  return BOTS_IA.filter(bot => {
+    const propios = grupos.filter(g => g.agentes.includes(bot.toLowerCase()));
+    return (propios.length ? propios : comodin).some(g => g.disallow.includes('/'));
+  });
+}
+
+/* Webs sin robots.txt/llms.txt suelen devolver su página 404 en HTML con estado 200 */
+function esTextoHtml(txt) {
+  return /<\s*(!doctype|html|head|body|div|script)\b/i.test(String(txt).slice(0, 2000));
+}
+
+/* description, canonical e idioma de la home; autor y dateModified de cualquiera de las páginas leídas */
+function detectarMeta(docs) {
+  const home = docs[0];
+  const meta = { description: false, canonical: false, lang: null, autor: false, dateModified: null };
+  const desc = home.querySelector('meta[name="description"]');
+  meta.description = !!(desc && (desc.getAttribute('content') || '').trim());
+  meta.canonical = !!home.querySelector('link[rel="canonical"][href]');
+  meta.lang = (home.documentElement.getAttribute('lang') || '').trim() || null;
+
+  let mejor = null;
+  const candidata = (str) => {
+    const d = new Date(str);
+    if (!isNaN(d) && (!mejor || d > mejor.d)) mejor = { d, str };
+  };
+  docs.forEach(d => {
+    if (!d) return;
+    if (d.querySelector('meta[name="author"][content]:not([content=""]), [rel~="author"]')) meta.autor = true;
+    const mod = d.querySelector('meta[property="article:modified_time"][content]');
+    if (mod) candidata(mod.getAttribute('content'));
+    leerJsonLd(d).forEach(({ data, texto }) => {
+      if (data) {
+        recorrerJsonLd(data, (k, v) => {
+          if (k === 'author' && v) meta.autor = true;
+          if (k === 'dateModified' && typeof v === 'string') candidata(v);
+        });
+      } else {
+        if (/"author"\s*:/.test(texto)) meta.autor = true;
+        const m = texto.match(/"dateModified"\s*:\s*"([^"]+)"/);
+        if (m) candidata(m[1]);
+      }
+    });
+  });
+  meta.dateModified = mejor ? mejor.str : null;
+  return meta;
+}
+
+/* ── Sitemap y páginas extra ── */
+
+const RE_SITEMAP_FAQ = /faq|preguntas-frecuentes/i;
+const RE_SITEMAP_CASOS = /caso|casos-de-exito|case-stud|clientes|testimonios/i;
+const RE_SITEMAP_GLOSARIO = /glosario|glossary/i;
+const RE_POST_PATH = /\/(blog|noticias|news|insights|articulos)\//i;
+
+/* Devuelve { hijos: [urls de sitemaps hijos], urls: [{ loc, lastmod }] }; lanza error si el XML no es válido */
+function parsearSitemap(xml) {
+  const d = new DOMParser().parseFromString(xml, 'text/xml');
+  if (d.querySelector('parsererror')) throw new Error('XML de sitemap inválido');
+  const texto = (el, tag) => { const n = el.getElementsByTagName(tag)[0]; return n ? n.textContent.trim() : ''; };
+  return {
+    hijos: Array.from(d.getElementsByTagName('sitemap')).map(el => texto(el, 'loc')).filter(Boolean),
+    urls: Array.from(d.getElementsByTagName('url')).map(el => ({ loc: texto(el, 'loc'), lastmod: texto(el, 'lastmod') })).filter(u => u.loc)
+  };
+}
+
+/* Lee el sitemap (sitemap.xml y, si falla, los Sitemap: de robots.txt). Si es un índice abre como máximo 2 hijos.
+   Cada petición gasta del presupuesto compartido (tope de peticiones extra por dominio). */
+async function leerSitemaps(origen, sitemapsRobots, presupuesto) {
+  const leer = async (url) => {
+    if (presupuesto.restantes <= 0) return null;
+    presupuesto.restantes--;
+    try {
+      const parsed = parsearSitemap(await fetchHtmlConProxy(url, null, { tipo: 'texto', respaldo: false }));
+      return (parsed.urls.length || parsed.hijos.length) ? parsed : null;
+    } catch (e) { console.warn('[Sitemap]', url, e.message); return null; }
+  };
+
+  const porDefecto = origen + '/sitemap.xml';
+  let raiz = await leer(porDefecto);
+  if (!raiz) {
+    for (const url of sitemapsRobots.filter(u => u !== porDefecto).slice(0, 2)) {
+      raiz = await leer(url);
+      if (raiz) break;
+    }
+  }
+  if (!raiz) return [];
+
+  const urls = [...raiz.urls];
+  /* En índices de WordPress/Yoast se prefieren los de páginas y entradas */
+  const hijos = [...raiz.hijos].sort((a, b) => /page|post|blog|pagina|entrada/i.test(b) - /page|post|blog|pagina|entrada/i.test(a)).slice(0, 2);
+  for (const hijo of hijos) {
+    const parsed = await leer(hijo);
+    if (parsed) urls.push(...parsed.urls);
+  }
+  return urls;
+}
+
+/* Como máximo 1 URL de FAQ, 1 de casos y 1 de glosario (la de ruta más corta, que suele ser el índice y no un post) */
+function elegirUrlsExtra(urls, baseUrl) {
+  const candidatas = urls.map(u => u.loc).filter(l => mismoHost(l, baseUrl)).map(l => {
+    let ruta = '';
+    try { ruta = decodeURIComponent(new URL(l).pathname).toLowerCase(); } catch (e) { return null; }
+    return { loc: l, ruta, prof: ruta.split('/').filter(Boolean).length };
+  }).filter(c => c && c.prof > 0 && !RE_POST_PATH.test(c.ruta));
+  const elegir = (re, usadas) => {
+    const orden = candidatas.filter(c => re.test(c.ruta) && !usadas.includes(c.loc)).sort((a, b) => a.prof - b.prof || a.ruta.length - b.ruta.length);
+    return orden.length ? orden[0].loc : null;
+  };
+  const faq = elegir(RE_SITEMAP_FAQ, []);
+  const casos = elegir(RE_SITEMAP_CASOS, [faq]);
+  const glosario = elegir(RE_SITEMAP_GLOSARIO, [faq, casos]);
+  return { faq, casos, glosario };
+}
+
+/* Posts del blog con <lastmod> en los últimos 12 meses y la lastmod más reciente */
+function contarPostsSitemap(urls, baseUrl) {
+  const hace12 = new Date(); hace12.setFullYear(hace12.getFullYear() - 1);
+  let numAno = 0, ultima = null;
+  urls.forEach(u => {
+    if (!mismoHost(u.loc, baseUrl)) return;
+    let ruta = '';
+    try { ruta = new URL(u.loc).pathname; } catch (e) { return; }
+    /* Solo posts (algo detrás del segmento /blog/), no el índice, paginación ni categorías */
+    if (!RE_BLOG_PATH.test(ruta) || !/\/(blog|noticias|news|insights|articulos|recursos)\/[^/]+/i.test(ruta)) return;
+    if (/\/(page|category|categoria|tag|etiqueta|author|autor)\//i.test(ruta)) return;
+    const d = new Date(u.lastmod);
+    if (isNaN(d)) return;
+    if (d >= hace12) numAno++;
+    if (!ultima || d > ultima) ultima = d;
+  });
+  return { numAno, ultima };
 }
 
 /* MOTOR PRINCIPAL */
@@ -989,26 +1402,44 @@ async function scrapeSingle(domain, onStatus = null) {
     blog: false, faq: false, h: false, h1: 0, h2: 0, h3: 0, schema: false,
     casos: false, glosario: false, alttext: false, tablas: false, listas: false,
     ultimoPost: null, postsAno: 0,
-    error: null, isSPA: false, tieneJsHeavy: false, unreachable: false, blockedByAntiBot: false
+    blogNivel: 'no', faqNivel: 'no', casosNivel: 'no', schemaNivel: 'no', schemaTipos: [],
+    fuentesNivel: 'no', comparativosNivel: 'no',
+    h2Textos: [], faqPreguntas: [], titulosPosts: [],
+    botsBloqueados: [], llmsTxt: false,
+    meta: { description: false, canonical: false, lang: null, autor: false, dateModified: null },
+    error: null, isSPA: false, renderizado: false, unreachable: false, blockedByAntiBot: false
   };
 
   const baseUrl = normalizeUrl(domain);
 
   try {
-    const html = await fetchConReintentos(baseUrl, 2, onStatus);
+    let html = await fetchConReintentos(baseUrl, 2, onStatus);
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    let doc = parser.parseFromString(html, 'text/html');
+
+    /* SPA: si casi no hay texto y hay contenedor de framework, se intenta una vez la home renderizada por el Worker */
+    r.isSPA = detectarSPA(doc, html);
+    if (r.isSPA) {
+      try {
+        if (onStatus) onStatus('Web SPA: pidiendo HTML renderizado…');
+        const htmlRender = await fetchHtmlConProxy(baseUrl, null, { render: true });
+        html = htmlRender;
+        doc = parser.parseFromString(htmlRender, 'text/html');
+        r.renderizado = true;
+        r.isSPA = detectarSPA(doc, html);
+      } catch (e) {
+        if (!e.sinRender) console.warn('[Render] falló:', e.message);
+      }
+    }
+
     const docsToAnalyze = [doc];
+    let blogDoc = null;
 
-    r.tieneJsHeavy = doc.querySelectorAll('script[src]').length > 6 || /__NEXT_DATA__|_reactFiber|__vue_component|ng-version/i.test(html);
-
-    r.blog = detectarBlog(doc);
-    r.faq  = detectarFaq(doc);
-    r.schema = detectarSchemaGeneral(doc);
+    let blogDetectado = detectarBlog(doc);
     const hh = detectarEncabezados(doc);
     r.h1 = hh.h1; r.h2 = hh.h2; r.h3 = hh.h3; r.h = hh.ok;
 
-    const linkAlBlog = Array.from(doc.querySelectorAll('a[href]')).find(a => ['blog', 'noticias', 'news', 'insights'].some(kw => (a.getAttribute('href')||'').toLowerCase().includes(kw)));
+    const linkAlBlog = Array.from(doc.querySelectorAll('a[href]')).find(a => esHrefBlog(a.getAttribute('href')));
     if (linkAlBlog) {
       const urlBlog = resolveUrl(linkAlBlog.getAttribute('href'), baseUrl);
       if (urlBlog && urlBlog !== baseUrl) {
@@ -1018,26 +1449,69 @@ async function scrapeSingle(domain, onStatus = null) {
           if (blogHostname === baseHostname || blogHostname.endsWith('.' + baseHostname)) {
             if (onStatus) onStatus('Analizando blog…');
             const blogHtml = await fetchConReintentos(urlBlog, 2, null);
-            const blogDoc  = parser.parseFromString(blogHtml, 'text/html');
-            r.blog = detectarBlog(blogDoc);
+            blogDoc = parser.parseFromString(blogHtml, 'text/html');
+            blogDetectado = detectarBlog(blogDoc);
             docsToAnalyze.push(blogDoc);
           }
         } catch (e) { console.warn(`[Deep crawl] Blog falló:`, e.message); }
       }
     }
 
+    /* Señales técnicas (robots.txt, llms.txt) y sitemap. Ningún fallo de aquí puede romper el scraping principal. */
+    const docsDeFechas = docsToAnalyze.slice();
+    const docsExtra = { faq: null, casos: null, glosario: null };
+    let urlsExtra = { faq: null, casos: null, glosario: null };
+    let sitemapPosts = { numAno: 0, ultima: null };
+    try {
+      const origen = new URL(baseUrl).origin;
+      if (onStatus) onStatus('Leyendo robots.txt y llms.txt…');
+      const pedirTexto = (ruta) => fetchHtmlConProxy(origen + ruta, null, { tipo: 'texto', respaldo: false })
+        .catch(e => { console.warn(`[${ruta}]`, e.message); return null; });
+      const [robotsTxt, llmsTxt] = await Promise.all([pedirTexto('/robots.txt'), pedirTexto('/llms.txt')]);
+
+      let sitemapsRobots = [];
+      if (robotsTxt && !esTextoHtml(robotsTxt)) {
+        const robots = parsearRobots(robotsTxt);
+        r.botsBloqueados = detectarBotsBloqueados(robots.grupos);
+        sitemapsRobots = robots.sitemaps;
+      }
+      r.llmsTxt = !!llmsTxt && llmsTxt.trim().length > 50 && !esTextoHtml(llmsTxt);
+
+      /* Tope de 5 peticiones extra por dominio para sitemaps y páginas extra (robots.txt y llms.txt no se cuentan) */
+      const presupuesto = { restantes: 5 };
+      if (onStatus) onStatus('Leyendo sitemap…');
+      const urlsSitemap = await leerSitemaps(origen, sitemapsRobots, presupuesto);
+      urlsExtra = elegirUrlsExtra(urlsSitemap, baseUrl);
+      sitemapPosts = contarPostsSitemap(urlsSitemap, baseUrl);
+
+      const pendientes = Object.keys(urlsExtra).filter(k => urlsExtra[k]).slice(0, Math.max(0, presupuesto.restantes));
+      if (pendientes.length) {
+        if (onStatus) onStatus('Analizando páginas extra…');
+        presupuesto.restantes -= pendientes.length;
+        await Promise.all(pendientes.map(async (clave) => {
+          try {
+            const extraHtml = await fetchConReintentos(urlsExtra[clave], 1, null);
+            docsExtra[clave] = parser.parseFromString(extraHtml, 'text/html');
+          } catch (e) { console.warn(`[Página extra ${clave}] falló:`, e.message); }
+        }));
+        ['faq', 'casos', 'glosario'].forEach(k => { if (docsExtra[k]) docsToAnalyze.push(docsExtra[k]); });
+      }
+    } catch (e) { console.warn('[Señales extra] falló:', e.message); }
+
     let hasGoodAlt = null, hasTables = false, hasLists = false;
+    const nivelesCasos = [];
+    const tiposSchemaTodos = new Set();
 
     docsToAnalyze.forEach(d => {
       if(!d) return;
-      if(!r.casos) r.casos = detectarCasos(d);
+      nivelesCasos.push(detectarCasos(d, d === docsExtra.casos));
       if(!r.glosario) r.glosario = detectarGlosario(d);
-      if(!r.schema) r.schema = detectarSchemaGeneral(d);
-      
+      tiposSchema(d).forEach(t => tiposSchemaTodos.add(t));
+
       const altResult = detectarAltText(d);
       if (altResult === true) hasGoodAlt = true;
       else if (altResult === false && hasGoodAlt === null) hasGoodAlt = false;
-      
+
       const tl = detectarTablasListas(d);
       if(tl.hasTables) hasTables = true;
       if(tl.hasLists) hasLists = true;
@@ -1047,11 +1521,54 @@ async function scrapeSingle(domain, onStatus = null) {
     r.tablas = hasTables;
     r.listas = hasLists;
 
-    const analisisFechas = analizarFechasYArticulos(docsToAnalyze);
-    r.ultimoPost = analisisFechas.ultimoPost;
-    r.postsAno = analisisFechas.numUltimoAno;
+    /* Una página de glosario leída con contenido cuenta aunque no use dt/dd ni clases típicas */
+    if (!r.glosario && docsExtra.glosario && textoVisible(getContentArea(docsExtra.glosario), 'nav, header, footer, aside').length >= 500) r.glosario = true;
 
-    if (!r.blog && !r.faq && r.tieneJsHeavy) r.isSPA = true;
+    /* Schema: unión de los tipos de todas las páginas leídas */
+    r.schemaTipos = Array.from(tiposSchemaTodos);
+    r.schemaNivel = nivelSchema(r.schemaTipos);
+
+    /* FAQ: el enlace solo es 'parcial' si la página no se pudo leer */
+    let faqNivel = mejorNivel(docsToAnalyze.map(d => detectarFaq(d)));
+    const faqNoLeida = !docsExtra.faq;
+    if (faqNivel === 'no' && faqNoLeida && (urlsExtra.faq || docsToAnalyze.some(hayEnlaceFaq))) faqNivel = 'parcial';
+    r.faqNivel = faqNivel;
+
+    r.casosNivel = mejorNivel(nivelesCasos);
+
+    /* Extracción de textos para el plan de acción */
+    /* Los títulos de la página de blog van aparte (titulosPosts), no se mezclan con los H2 ni con las preguntas FAQ */
+    const docsSinBlog = docsToAnalyze.filter(d => d !== blogDoc);
+    r.h2Textos = extraerTextosH2(docsSinBlog);
+    r.faqPreguntas = extraerPreguntasFaq(docsSinBlog);
+    r.titulosPosts = blogDoc ? extraerTitulosPosts(blogDoc) : [];
+
+    r.fuentesNivel = detectarFuentes(docsToAnalyze, baseUrl);
+    r.comparativosNivel = detectarComparativos(docsToAnalyze, baseUrl, r.titulosPosts);
+    r.meta = detectarMeta(docsToAnalyze);
+
+    /* Fechas y blog: solo home + página de blog, las páginas extra no cuentan como posts */
+    const analisisFechas = analizarFechasYArticulos(docsDeFechas);
+    r.ultimoPost = analisisFechas.ultimoPost;
+    r.postsAno = Math.max(analisisFechas.numUltimoAno, sitemapPosts.numAno);
+    let fechaUltimoPost = analisisFechas.ultimoPostFecha;
+    if (!fechaUltimoPost && sitemapPosts.ultima) {
+      fechaUltimoPost = sitemapPosts.ultima;
+      r.ultimoPost = [fechaUltimoPost.getDate().toString().padStart(2, '0'), (fechaUltimoPost.getMonth() + 1).toString().padStart(2, '0'), fechaUltimoPost.getFullYear()].join('/');
+    }
+
+    const mesesDesdeUltimo = fechaUltimoPost ? (Date.now() - fechaUltimoPost.getTime()) / (1000 * 60 * 60 * 24 * 30.44) : null;
+    if (mesesDesdeUltimo !== null) {
+      r.blogNivel = (mesesDesdeUltimo <= 6 && r.postsAno >= 4) ? 'si' : (mesesDesdeUltimo <= 12 ? 'parcial' : 'no');
+    } else {
+      r.blogNivel = blogDetectado ? 'parcial' : 'no';
+    }
+
+    /* Los booleanos de siempre solo son true cuando el nivel es 'si' */
+    r.blog = r.blogNivel === 'si';
+    r.faq = r.faqNivel === 'si';
+    r.casos = r.casosNivel === 'si';
+    r.schema = r.schemaNivel === 'si';
 
   } catch (e) {
     r.error = e.message;
@@ -1104,7 +1621,8 @@ async function runAnalysis(){
   };
   setProg(0);
 
-  for (let i = 0; i < entities.length; i++) {
+  /* Cada entidad se analiza y actualiza su fila al terminar; S.analysis.scraping[i] conserva el orden por índice */
+  const analizarEntidad = async (i) => {
     const e = entities[i];
     const el    = document.getElementById('si-' + i);
     const infoEl = document.getElementById('si-info-' + i);
@@ -1141,7 +1659,19 @@ async function runAnalysis(){
 
     done++; setProg(done);
     if (S.activeComp === i) renderAnalysis(i);
-  }
+  };
+
+  /* Pool simple: 3 trabajadores que toman el siguiente índice pendiente de un contador compartido */
+  const CONCURRENCIA = 3;
+  let siguiente = 0;
+  const trabajador = async () => {
+    while (siguiente < entities.length) {
+      const i = siguiente++;
+      try { await analizarEntidad(i); }
+      catch (err) { console.warn('[runAnalysis] entidad ' + i + ' falló:', err.message); }
+    }
+  };
+  await Promise.allSettled(Array.from({ length: Math.min(CONCURRENCIA, entities.length) }, trabajador));
 
   S.analysis.done = true;
   S.analysis.lastSync = new Date().toLocaleString();
@@ -1211,6 +1741,23 @@ function renderAnalysis(idx){
     html += `<div class="check-item"><span class="check-icon ${sc.alttext?'ok':'fail'}">${sc.alttext?'✓':'✕'}</span><span class="check-text"><strong>Alt text en imágenes:</strong> ${sc.alttext?'Optimizado':'Faltante o deficiente'}</span></div>`;
     html += `<div class="check-item"><span class="check-icon ${sc.casos?'ok':'fail'}">${sc.casos?'✓':'✕'}</span><span class="check-text"><strong>Tiene página de casos de éxito:</strong> ${sc.casos?'Sí':'No'}</span></div>`;
     html += `<div class="check-item"><span class="check-icon ${sc.glosario?'ok':'fail'}">${sc.glosario?'✓':'✕'}</span><span class="check-text"><strong>Tiene glosario o definiciones:</strong> ${sc.glosario?'Sí':'No'}</span></div>`;
+
+    /* Señales técnicas GEO (informativas, no suman puntos). Los objetos antiguos de localStorage no las tienen */
+    if (Array.isArray(sc.botsBloqueados)) {
+      const bloquea = sc.botsBloqueados.length > 0;
+      html += `<div class="check-item"><span class="check-icon ${bloquea?'fail':'ok'}">${bloquea?'✕':'✓'}</span><span class="check-text"><strong>${bloquea ? 'Bloquea a:' : 'Bots de IA en robots.txt:'}</strong> ${bloquea ? esc(sc.botsBloqueados.join(', ')) : 'No bloquea ninguno'}</span></div>`;
+    }
+    if (typeof sc.llmsTxt === 'boolean') {
+      html += `<div class="check-item"><span class="check-icon ${sc.llmsTxt?'ok':'fail'}">${sc.llmsTxt?'✓':'✕'}</span><span class="check-text"><strong>Tiene llms.txt:</strong> ${sc.llmsTxt?'Sí':'No'}</span></div>`;
+    }
+    if (sc.meta && typeof sc.meta === 'object') {
+      const m = sc.meta;
+      html += `<div class="check-item"><span class="check-icon ${m.description?'ok':'fail'}">${m.description?'✓':'✕'}</span><span class="check-text"><strong>Meta description:</strong> ${m.description?'Sí':'No'}</span></div>`;
+      html += `<div class="check-item"><span class="check-icon ${m.canonical?'ok':'fail'}">${m.canonical?'✓':'✕'}</span><span class="check-text"><strong>URL canónica:</strong> ${m.canonical?'Sí':'No'}</span></div>`;
+      html += `<div class="check-item"><span class="check-icon ${m.lang?'ok':'fail'}">${m.lang?'✓':'✕'}</span><span class="check-text"><strong>Idioma declarado (lang):</strong> ${m.lang?esc(m.lang):'No'}</span></div>`;
+      html += `<div class="check-item"><span class="check-icon ${m.autor?'ok':'fail'}">${m.autor?'✓':'✕'}</span><span class="check-text"><strong>Autor identificado:</strong> ${m.autor?'Sí':'No'}</span></div>`;
+      html += `<div class="check-item"><span class="check-icon ${m.dateModified?'ok':'fail'}">${m.dateModified?'✓':'✕'}</span><span class="check-text"><strong>Fecha de modificación (dateModified):</strong> ${m.dateModified?esc(m.dateModified):'No'}</span></div>`;
+    }
     autoEl.innerHTML = html;
   }
 
@@ -1503,6 +2050,21 @@ function construirPrompt() {
     ? S.config.competitors.map((c, i) => '  - ' + (c.name || c.domain) + ': ' + score(i + 1) + '/100 pts').join('\n')
     : '  - Sin competidores configurados';
 
+  /* Señales técnicas GEO (informativas): robots.txt, llms.txt y meta de cada web. Los objetos antiguos no las tienen */
+  const lineasSenales = (sc) => {
+    if (!sc || sc.error || !Array.isArray(sc.botsBloqueados)) return '    - Sin datos tecnicos (analisis antiguo o fallido)';
+    const m = sc.meta || {};
+    return [
+      '    - Bots de IA bloqueados en robots.txt: ' + (sc.botsBloqueados.length ? sc.botsBloqueados.join(', ') : 'ninguno'),
+      '    - llms.txt: ' + (sc.llmsTxt ? 'SI' : 'NO'),
+      '    - Meta description: ' + (m.description ? 'SI' : 'NO') + ' | Canonical: ' + (m.canonical ? 'SI' : 'NO') + ' | Idioma (lang): ' + (m.lang || 'no declarado'),
+      '    - Autor identificado: ' + (m.autor ? 'SI' : 'NO') + ' | dateModified: ' + (m.dateModified || 'no declarado')
+    ].join('\n');
+  };
+  const senalesTecnicas = entities.map((e, i) =>
+    '  ' + (i === 0 ? 'Tu empresa' : 'Competidor') + ' (' + (e.name || e.domain || 'sin nombre') + '):\n' + lineasSenales(S.analysis.scraping[i])
+  ).join('\n');
+
   return 'Eres un consultor experto en GEO (Generative Engine Optimization) para empresas SaaS de sostenibilidad.\n\n' +
     'Tu tarea es analizar los datos de posicionamiento GEO y generar un plan de accion concreto y priorizado.\n\n' +
     'DATOS DE LA EMPRESA:\n' +
@@ -1512,6 +2074,7 @@ function construirPrompt() {
     'PUNTUACIONES DE COMPETIDORES:\n' + listaComp + '\n\n' +
     'ESTADO DE LAS 12 METRICAS GEO:\n' + tablaEstado + '\n\n' +
     'BRECHAS RESPECTO A LA COMPETENCIA (ordenadas por impacto):\n' + listaBrechas + '\n\n' +
+    'SEÑALES TÉCNICAS GEO (informativas, no puntúan):\n' + senalesTecnicas + '\n\n' +
     'INSTRUCCION CRITICA: Responde UNICAMENTE con un objeto JSON valido. Absolutamente nada antes ni despues del JSON. Sin bloques de codigo markdown, sin explicaciones.\n\n' +
     'El JSON debe tener exactamente esta estructura:\n' +
     '{"resumen":"resumen ejecutivo en 2-3 frases","acciones":[{"prioridad":1,"titulo":"titulo corto","impacto":"alto","esfuerzo":"bajo","plazo":"inmediato","descripcion":"descripcion detallada y accionable","puntos_potenciales":10}],"quick_wins":["accion rapida 1","accion rapida 2","accion rapida 3"],"mensaje_final":"frase motivacional concreta"}\n\n' +
@@ -1521,7 +2084,8 @@ function construirPrompt() {
     '- plazo: solo los valores "inmediato", "corto" o "medio"\n' +
     '- Genera entre 4 y 6 acciones ordenadas de mayor a menor prioridad\n' +
     '- Se especifico y accionable, evita generalidades\n' +
-    '- Prioriza las brechas detectadas respecto a la competencia';
+    '- Prioriza las brechas detectadas respecto a la competencia\n' +
+    '- Si tu empresa bloquea bots de IA o no tiene llms.txt, incluye acciones concretas (por ejemplo: desbloquear GPTBot en robots.txt, crear llms.txt)';
 }
 
 async function generarPlanAccion() {
