@@ -749,7 +749,7 @@
           <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
               <span class="card-title">Temas Registrados en Memoria</span>
-              <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="limpiarHistorialTemas()">🗑️
+              <button class="btn btn-danger btn-sm" onclick="limpiarHistorialTemas()">🗑️
                 Vaciar historial</button>
             </div>
             <div id="lista-historial-temas"></div>
@@ -2545,9 +2545,9 @@
             (tieneError ? '🔄 Reintentar' : '✨ Generar este artículo') +
             '</button>';
         }
-        html += '<button class="btn btn-ghost btn-sm" onclick="descartarPropuesta(' + idx + ')" ' +
-          'style="font-size:12px;color:var(--danger)"' +
-          (esGenerando ? ' disabled style="font-size:12px;color:var(--danger);opacity:.4"' : '') +
+        html += '<button class="btn btn-danger btn-sm" onclick="descartarPropuesta(' + idx + ')" ' +
+          'style="font-size:12px"' +
+          (esGenerando ? ' disabled' : '') +
           '>✕ Descartar</button>';
         html += '</div>';
 
@@ -4121,13 +4121,13 @@ OBLIGATORIO — Esta sección NUNCA puede estar vacía. Escribe el post de Linke
 
         // ✅ Aprobar — solo si hay contenido generado
         if (prop.estado !== 'aprobado' && tieneContenidoGenerado) {
-          html += '<button class="btn btn-sm" style="background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.3)" ' +
+          html += '<button class="btn btn-success btn-sm" ' +
             'onclick="cambiarEstadoBandeja(' + idx + ',\'aprobado\')">✅ Aprobar</button>';
         }
 
         // 📝 Crear contenido — si no hay contenido todavía
         if (!tieneContenidoGenerado) {
-          html += '<button class="btn btn-sm" style="background:rgba(37,99,235,.12);color:var(--primary);border:1px solid rgba(37,99,235,.3)" ' +
+          html += '<button class="btn btn-info btn-sm" ' +
             'onclick="activarPropuestaBandeja(' + idx + ')">✨ Crear contenido</button>';
         }
 
@@ -4139,21 +4139,21 @@ OBLIGATORIO — Esta sección NUNCA puede estar vacía. Escribe el post de Linke
 
         // ✏️ Editar — si tiene contenido pero NO está en estado edicion
         if (tieneContenidoGenerado && prop.estado !== 'edicion') {
-          html += '<button class="btn btn-sm" style="background:rgba(37,99,235,.1);color:var(--primary);border:1px solid rgba(37,99,235,.25)" ' +
+          html += '<button class="btn btn-primary btn-sm" ' +
             'onclick="editarYAprobar(' + idx + ')">✏️ Editar y aprobar</button>';
         }
 
         // 🔄 Regenerar — mismo tipo y tema, nueva versión
-        html += '<button class="btn btn-sm" style="background:rgba(245,158,11,.1);color:#b45309;border:1px solid rgba(245,158,11,.3)" ' +
+        html += '<button class="btn btn-warning btn-sm" ' +
           'onclick="regenerarPropuesta(' + idx + ')">🔄 Regenerar</button>';
 
         // 🎲 Cambiar tema — mismo tipo, tema distinto
-        html += '<button class="btn btn-sm" style="background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.3)" ' +
+        html += '<button class="btn btn-violet btn-sm" ' +
           'onclick="cambiarTemaPropuesta(' + idx + ')">🎲 Cambiar tema</button>';
 
         // ❌ Descartar
         if (prop.estado !== 'descartado') {
-          html += '<button class="btn btn-ghost btn-sm" style="color:var(--danger)" ' +
+          html += '<button class="btn btn-danger btn-sm" ' +
             'onclick="cambiarEstadoBandeja(' + idx + ',\'descartado\')">❌ Descartar</button>';
         }
 
@@ -4809,7 +4809,7 @@ OBLIGATORIO — Esta sección NUNCA puede estar vacía. Escribe el post de Linke
           '<div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px;">' + esc(t.titulo) + '</div>' +
           '<div style="font-size:11px;color:var(--text-muted);">Registrado el ' + d + '</div>' +
           '</div>' +
-          '<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="eliminarTemaHistorial(' + t.fecha + ')">✕ Eliminar</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="eliminarTemaHistorial(' + t.fecha + ')">✕ Eliminar</button>' +
           '</div>';
       });
       html += '</div>';
@@ -5118,8 +5118,7 @@ OBLIGATORIO — Esta sección NUNCA puede estar vacía. Escribe el post de Linke
 
         // Marcar publicado / pendiente
         if (!esPub) {
-          html += '<button class="btn btn-sm" style="margin-left:auto;background:rgba(16,185,129,.12);' +
-            'color:#059669;border:1px solid rgba(16,185,129,.3)" ' +
+          html += '<button class="btn btn-success btn-sm" style="margin-left:auto" ' +
             'onclick="marcarPublicado(' + idx + ')">✅ Marcar como publicado</button>';
         } else {
           html += '<button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-muted)" ' +
@@ -5137,4 +5136,4 @@ OBLIGATORIO — Esta sección NUNCA puede estar vacía. Escribe el post de Linke
   </script>
 </body>
 
-</html>
+</html>

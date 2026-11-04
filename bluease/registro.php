@@ -110,22 +110,92 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .hint { font-size: 11px; color: #9ca3af; margin-top: -12px; margin-bottom: 16px; }
 
+        /* Botón brillante (ShinyButton portado a CSS puro), verde de marca */
+        @property --gradient-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+        @property --gradient-angle-offset { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+        @property --gradient-percent { syntax: "<percentage>"; initial-value: 5%; inherits: false; }
+        @property --gradient-shine { syntax: "<color>"; initial-value: white; inherits: false; }
+
         button {
+            --shiny-bg: #04271a; --shiny-bg-subtle: #065f46; --shiny-fg: #ffffff;
+            --shiny-hl: #1ed671; --shiny-hl-subtle: #86efac;
+            --animation: gradient-angle linear infinite;
+            --duration: 3s;
+            --shadow-size: 2px;
+            --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
+            isolation: isolate;
+            position: relative;
+            overflow: hidden;
             width: 100%;
-            padding: 11px;
-            background: #1ed671;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            padding: 12px;
+            color: var(--shiny-fg);
+            border: 1px solid transparent;
+            border-radius: 360px;
+            background:
+                linear-gradient(var(--shiny-bg), var(--shiny-bg)) padding-box,
+                conic-gradient(
+                    from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+                    transparent,
+                    var(--shiny-hl) var(--gradient-percent),
+                    var(--gradient-shine) calc(var(--gradient-percent) * 2),
+                    var(--shiny-hl) calc(var(--gradient-percent) * 3),
+                    transparent calc(var(--gradient-percent) * 4)
+                ) border-box;
+            box-shadow: inset 0 0 0 1px var(--shiny-bg-subtle);
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
             margin-top: 4px;
+            transition: var(--transition);
+            transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine, box-shadow, opacity;
         }
-        button:hover:not(:disabled) { background: #1191db; }
-        button:disabled { background: #d1d5db; cursor: not-allowed; }
+        button::before, button::after {
+            content: ""; pointer-events: none; position: absolute;
+            inset-inline-start: 50%; inset-block-start: 50%;
+            translate: -50% -50%; z-index: -1;
+        }
+        button:active:not(:disabled) { translate: 0 1px; }
+        button::before {
+            --size: calc(100% - var(--shadow-size) * 3);
+            --position: 2px;
+            --space: calc(var(--position) * 2);
+            width: var(--size); height: var(--size);
+            background: radial-gradient(circle at var(--position) var(--position), white calc(var(--position) / 4), transparent 0) padding-box;
+            background-size: var(--space) var(--space);
+            background-repeat: space;
+            mask-image: conic-gradient(from calc(var(--gradient-angle) + 45deg), black, transparent 10% 90%, black);
+            border-radius: inherit;
+            opacity: 0.4;
+        }
+        button::after {
+            --animation: shimmer linear infinite;
+            width: 100%; aspect-ratio: 1;
+            background: linear-gradient(-50deg, transparent, var(--shiny-hl), transparent);
+            mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+            opacity: 0.6;
+        }
+        button, button::before, button::after {
+            animation: var(--animation) var(--duration),
+                       var(--animation) calc(var(--duration) / 0.4) reverse paused;
+            animation-composition: add;
+        }
+        button:is(:hover, :focus-visible):not(:disabled) {
+            --gradient-percent: 20%;
+            --gradient-angle-offset: 95deg;
+            --gradient-shine: var(--shiny-hl-subtle);
+            box-shadow: inset 0 0 0 1px var(--shiny-bg-subtle),
+                        inset 0 -1ex 1.4rem 0 color-mix(in srgb, var(--shiny-hl) 55%, transparent);
+        }
+        button:is(:hover, :focus-visible):not(:disabled),
+        button:is(:hover, :focus-visible):not(:disabled)::before,
+        button:is(:hover, :focus-visible):not(:disabled)::after { animation-play-state: running; }
+        button:disabled { opacity: 0.55; cursor: not-allowed; }
+        @keyframes gradient-angle { to { --gradient-angle: 360deg; } }
+        @keyframes shimmer { to { rotate: 360deg; } }
+        @media (prefers-reduced-motion: reduce) {
+            button, button::before, button::after { animation: none !important; }
+        }
 
         .footer { text-align: center; margin-top: 20px; font-size: 13px; color: #6b7280; }
         .footer a { color: #00A86B; font-weight: 600; text-decoration: none; }

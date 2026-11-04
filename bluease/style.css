@@ -253,39 +253,161 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sec
 .form-full { margin-bottom: 20px; }
 
 /* ==========================================================================
-   BUTTONS (Sólidos, sin brillos innecesarios)
+   BUTTONS (ShinyButton portado a CSS puro: borde cónico animado + brillo)
+   Cada variante solo define sus colores mediante variables --shiny-*.
    ========================================================================== */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; padding: 10px 18px;
-  border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer;
-  transition: all 0.2s ease; border: none; font-family: inherit; gap: 8px;
+@property --gradient-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@property --gradient-angle-offset { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@property --gradient-percent { syntax: "<percentage>"; initial-value: 5%; inherits: false; }
+@property --gradient-shine { syntax: "<color>"; initial-value: white; inherits: false; }
+
+.btn, .add-row {
+  /* Colores por defecto (neutro pizarra); las variantes los sobrescriben */
+  --shiny-bg: #1e293b; --shiny-bg-subtle: #334155; --shiny-fg: #f8fafc;
+  --shiny-hl: #64748b; --shiny-hl-subtle: #cbd5e1; --shiny-dots: #ffffff;
+  --animation: gradient-angle linear infinite;
+  --duration: 3s;
+  --shadow-size: 2px;
+  --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
+
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  isolation: isolate; position: relative; overflow: hidden; cursor: pointer;
+  outline-offset: 3px;
+  padding: 10px 18px;
+  font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.2;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  color: var(--shiny-fg);
+  background:
+    linear-gradient(var(--shiny-bg), var(--shiny-bg)) padding-box,
+    conic-gradient(
+      from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+      transparent,
+      var(--shiny-hl) var(--gradient-percent),
+      var(--gradient-shine) calc(var(--gradient-percent) * 2),
+      var(--shiny-hl) calc(var(--gradient-percent) * 3),
+      transparent calc(var(--gradient-percent) * 4)
+    ) border-box;
+  box-shadow: inset 0 0 0 1px var(--shiny-bg-subtle);
+  transition: var(--transition);
+  transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine, box-shadow, opacity;
 }
 
-.btn:active { transform: scale(0.97); }
+.btn::before, .btn::after, .add-row::before, .add-row::after {
+  content: ""; pointer-events: none; position: absolute;
+  inset-inline-start: 50%; inset-block-start: 50%;
+  translate: -50% -50%; z-index: -1;
+}
 
+.btn:active, .add-row:active { translate: 0 1px; }
+
+/* Patrón de puntos */
+.btn::before, .add-row::before {
+  --size: calc(100% - var(--shadow-size) * 3);
+  --position: 2px;
+  --space: calc(var(--position) * 2);
+  width: var(--size); height: var(--size);
+  background: radial-gradient(circle at var(--position) var(--position), var(--shiny-dots) calc(var(--position) / 4), transparent 0) padding-box;
+  background-size: var(--space) var(--space);
+  background-repeat: space;
+  mask-image: conic-gradient(from calc(var(--gradient-angle) + 45deg), black, transparent 10% 90%, black);
+  border-radius: inherit;
+  opacity: 0.4;
+}
+
+/* Brillo interior */
+.btn::after, .add-row::after {
+  --animation: shimmer linear infinite;
+  width: 100%; aspect-ratio: 1;
+  background: linear-gradient(-50deg, transparent, var(--shiny-hl), transparent);
+  mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+  opacity: 0.6;
+}
+
+/* Animación */
+.btn, .btn::before, .btn::after, .add-row, .add-row::before, .add-row::after {
+  animation: var(--animation) var(--duration),
+             var(--animation) calc(var(--duration) / 0.4) reverse paused;
+  animation-composition: add;
+}
+
+.btn:is(:hover, :focus-visible), .add-row:is(:hover, :focus-visible) {
+  --gradient-percent: 20%;
+  --gradient-angle-offset: 95deg;
+  --gradient-shine: var(--shiny-hl-subtle);
+  /* Resplandor interior (sustituye al span::before del componente React) */
+  box-shadow: inset 0 0 0 1px var(--shiny-bg-subtle),
+              inset 0 -1ex 1.4rem 0 color-mix(in srgb, var(--shiny-hl) 55%, transparent);
+}
+
+.btn:is(:hover, :focus-visible),
+.btn:is(:hover, :focus-visible)::before,
+.btn:is(:hover, :focus-visible)::after,
+.add-row:is(:hover, :focus-visible),
+.add-row:is(:hover, :focus-visible)::before,
+.add-row:is(:hover, :focus-visible)::after { animation-play-state: running; }
+
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@keyframes gradient-angle { to { --gradient-angle: 360deg; } }
+@keyframes shimmer { to { rotate: 360deg; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn::before, .btn::after, .add-row, .add-row::before, .add-row::after { animation: none !important; }
+}
+
+/* --- Variantes de color --- */
+/* Primario: azul real sobre azul marino (acción principal) */
 .btn-primary {
-  background: var(--accent-primary); color: white;
-  box-shadow: var(--shadow-sm);
+  --shiny-bg: #0b1f4d; --shiny-bg-subtle: #1e3a8a; --shiny-fg: #ffffff;
+  --shiny-hl: #2563eb; --shiny-hl-subtle: #93c5fd;
 }
-.btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
-
-.btn-secondary { background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-.btn-secondary:hover { background: var(--bg-surface-hover); }
-
-.btn-ghost { background: transparent; color: var(--text-secondary); }
-.btn-ghost:hover { background: var(--bg-surface-hover); color: var(--text-main); }
-
-.btn-danger { background: var(--danger-light); color: var(--danger); font-size: 12px; padding: 6px 12px; }
-.btn-danger:hover { background: var(--danger); color: white; }
+/* Secundario y fantasma: neutros, solo animan al pasar el ratón para no distraer */
+.btn-secondary {
+  --shiny-bg: var(--bg-surface); --shiny-bg-subtle: var(--border-color); --shiny-fg: var(--text-main);
+  --shiny-hl: #64748b; --shiny-hl-subtle: #94a3b8; --shiny-dots: #94a3b8;
+}
+.btn-ghost, .add-row {
+  --shiny-bg: var(--bg-surface-hover); --shiny-bg-subtle: var(--border-color); --shiny-fg: var(--text-secondary);
+  --shiny-hl: #94a3b8; --shiny-hl-subtle: #cbd5e1; --shiny-dots: #94a3b8;
+}
+.btn-secondary, .btn-ghost, .add-row { --animation: none; --gradient-shine: var(--shiny-hl); }
+.btn-secondary::after, .btn-ghost::after { --animation: none; }
+.btn-secondary:is(:hover, :focus-visible), .btn-ghost:is(:hover, :focus-visible), .add-row:is(:hover, :focus-visible) { --animation: gradient-angle linear infinite; --shiny-fg: var(--text-main); }
+.btn-secondary:is(:hover, :focus-visible)::after, .btn-ghost:is(:hover, :focus-visible)::after { --animation: shimmer linear infinite; }
+/* Peligro: rojo (eliminar, descartar) */
+.btn-danger {
+  --shiny-bg: #450a0a; --shiny-bg-subtle: #7f1d1d; --shiny-fg: #fecaca;
+  --shiny-hl: #ef4444; --shiny-hl-subtle: #fca5a5;
+  font-size: 12px; padding: 6px 12px;
+}
+/* Éxito: verde (aprobar, publicar) */
+.btn-success {
+  --shiny-bg: #052e1f; --shiny-bg-subtle: #065f46; --shiny-fg: #d1fae5;
+  --shiny-hl: #10b981; --shiny-hl-subtle: #6ee7b7;
+}
+/* Info: azul cielo (crear contenido, editar) */
+.btn-info {
+  --shiny-bg: #082f49; --shiny-bg-subtle: #075985; --shiny-fg: #e0f2fe;
+  --shiny-hl: #0ea5e9; --shiny-hl-subtle: #7dd3fc;
+}
+/* Aviso: ámbar (regenerar) */
+.btn-warning {
+  --shiny-bg: #451a03; --shiny-bg-subtle: #92400e; --shiny-fg: #fef3c7;
+  --shiny-hl: #f59e0b; --shiny-hl-subtle: #fcd34d;
+}
+/* Violeta: cambiar tema, acciones creativas */
+.btn-violet {
+  --shiny-bg: #2e1065; --shiny-bg-subtle: #5b21b6; --shiny-fg: #ede9fe;
+  --shiny-hl: #8b5cf6; --shiny-hl-subtle: #c4b5fd;
+}
 
 .btn-sm { padding: 6px 14px; font-size: 12px; }
 
 .add-row {
-  width: 100%; padding: 12px; background: var(--bg-surface-hover); border: 1px dashed var(--border-color);
-  border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer;
-  transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  display: flex; width: 100%; padding: 12px; border-radius: var(--radius);
+  font-size: 14px; gap: 8px;
 }
-.add-row:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: var(--accent-light); }
 
 /* ==========================================================================
    TABLES
