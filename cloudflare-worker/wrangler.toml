@@ -1,0 +1,23 @@
+name = "little-feather-e318"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+# Necesario para @cloudflare/puppeteer (Browser Rendering)
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Orígenes que pueden llamar al Worker, separados por comas.
+# "null" es el origen de un HTML abierto como file://. Añade aquí tu dominio real.
+ALLOWED_ORIGINS = "null,http://localhost:8080,http://127.0.0.1:8080"
+
+# Opcional: Browser Rendering para /api/fetch?render=1 (requiere plan con Browser Rendering).
+# [browser]
+# binding = "BROWSER"
+
+# Opcional: límite de 30 peticiones / 10 min / IP en /api/claude y /api/plan.
+# Crea el namespace con: wrangler kv namespace create RATE_KV
+# [[kv_namespaces]]
+# binding = "RATE_KV"
+# id = "PEGA_AQUI_EL_ID_DEL_NAMESPACE"
+
+# La clave de Anthropic NO va aquí. Se guarda como secret:
+#   wrangler secret put ANTHROPIC_API_KEY
