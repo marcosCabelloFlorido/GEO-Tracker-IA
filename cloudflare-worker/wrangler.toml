@@ -9,6 +9,9 @@ compatibility_flags = ["nodejs_compat"]
 # "null" es el origen de un HTML abierto como file://. Añade aquí tu dominio real.
 ALLOWED_ORIGINS = "null,http://localhost:8080,http://127.0.0.1:8080"
 
+# Opcional: modelo de /api/plan (por defecto claude-haiku-4-5-20251001, el del Worker original).
+# PLAN_MODEL = "claude-haiku-4-5-20251001"
+
 # Opcional: Browser Rendering para /api/fetch?render=1 (requiere plan con Browser Rendering).
 # [browser]
 # binding = "BROWSER"
@@ -20,4 +23,4 @@ ALLOWED_ORIGINS = "null,http://localhost:8080,http://127.0.0.1:8080"
 # id = "PEGA_AQUI_EL_ID_DEL_NAMESPACE"
 
 # La clave de Anthropic NO va aquí. Se guarda como secret:
-#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put ANTHROPIC_API_KEY   (también se acepta el nombre antiguo ANTHROPIC_KEY)

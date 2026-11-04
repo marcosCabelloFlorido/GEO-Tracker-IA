@@ -8,7 +8,7 @@ Worker `little-feather-e318`. La clave de Anthropic vive solo aquí, como *secre
 |---|---|
 | `GET /?url=<url>` | HTML de la URL como texto (la usa el frontend actual). |
 | `GET /api/fetch?url=<url>&render=0\|1` | JSON `{ ok, status, finalUrl, html }`. `render=1` usa Browser Rendering (501 si no está activado). |
-| `POST /api/plan` | Body `{ prompt }`. Devuelve el JSON de Anthropic tal cual (modelo `claude-sonnet-5-5`). |
+| `POST /api/plan` | Body `{ prompt }`. Devuelve el JSON de Anthropic tal cual. Conserva el modelo y el límite del Worker original: `claude-haiku-4-5-20251001`, `max_tokens` 4060 (se puede cambiar el modelo con la variable `PLAN_MODEL`). |
 | `POST /api/claude` | Proxy con streaming SSE. Acepta solo `model`, `max_tokens` (máx. 16000), `system`, `messages`, `temperature`. Modelos: `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-haiku-5-5`. |
 
 Las URLs se validan contra SSRF (solo http/https; se rechazan `localhost`, `127.*`, `10.*`, `172.16-31.*`, `192.168.*`, `169.254.*`, `::1`, etc., también en cada redirección). No hay ninguna función para saltarse captchas ni protecciones anti-bot.
@@ -31,6 +31,10 @@ wrangler login
 ```bash
 wrangler secret put ANTHROPIC_API_KEY   # pega la clave cuando la pida
 ```
+
+Si el Worker ya tenía el secret antiguo `ANTHROPIC_KEY`, sigue funcionando sin hacer nada: el código acepta los dos nombres (`ANTHROPIC_API_KEY` tiene prioridad).
+
+**Dónde sacar la clave:** en la consola de Anthropic (console.anthropic.com) → *API Keys* → *Create Key*. Se muestra una sola vez. Es de pago por uso y distinta de una suscripción de Claude.ai: hay que añadir saldo en *Plans & Billing*.
 
 Edita `ALLOWED_ORIGINS` en `wrangler.toml` y añade el dominio donde sirves la app (el valor `null` ya cubre el HTML abierto como `file://`). Después:
 

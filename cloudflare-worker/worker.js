@@ -8,6 +8,8 @@
 //
 // Secretos / variables / bindings (ver wrangler.toml y README.md):
 //   ANTHROPIC_API_KEY  (secret)   clave de Anthropic. Nunca se registra ni se devuelve.
+//                                 Por compatibilidad con el Worker anterior también se acepta ANTHROPIC_KEY.
+//   PLAN_MODEL         (var, opc.) modelo de /api/plan. Por defecto el del Worker original.
 //   ALLOWED_ORIGINS    (var)      orígenes permitidos separados por comas. Incluye "null" para file://.
 //   RATE_KV            (KV, opc.) activa el límite de 30 peticiones / 10 min / IP.
 //   BROWSER            (opc.)     Browser Rendering, solo para /api/fetch?render=1.
@@ -20,7 +22,10 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_MODEL = 'claude-sonnet-5-5';
 const ALLOWED_MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'];
 const MAX_TOKENS_LIMIT = 16000;
-const PLAN_MAX_TOKENS = 8000;
+// /api/plan conserva el modelo y el límite del Worker original.
+const DEFAULT_PLAN_MODEL = 'claude-haiku-4-5-20251001';
+const PLAN_MAX_TOKENS = 4060;
+const CLAUDE_DEFAULT_MAX_TOKENS = 8000;
 
 const FETCH_TIMEOUT_MS = 12000;
 const RENDER_TIMEOUT_MS = 20000;
@@ -33,6 +38,14 @@ const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; GEOTrackerBot/1.0)';
+
+// Cabeceras y caché de la ruta heredada GET /?url= (idénticas al Worker original).
+const LEGACY_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  'Accept': 'text/html,application/xhtml+xml',
+  'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+};
+const LEGACY_CF = { cacheTtl: 3600 };
 
 /* ───────────────────────── Utilidades de respuesta ───────────────────────── */
 
@@ -198,7 +211,8 @@ async function readBodyLimited(response, maxBytes) {
 
 // Descarga una URL siguiendo redirecciones a mano (máx. MAX_REDIRECTS) para
 // validar cada salto contra la lista anti-SSRF. Devuelve { status, finalUrl, html }.
-async function fetchPage(startUrl) {
+async function fetchPage(startUrl, opts) {
+  const options = opts || {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -208,11 +222,12 @@ async function fetchPage(startUrl) {
         method: 'GET',
         redirect: 'manual',
         signal: controller.signal,
-        headers: {
+        headers: options.headers || {
           'User-Agent': USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
           'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
         },
+        ...(options.cf ? { cf: options.cf } : {}),
       });
       if (res.status >= 300 && res.status < 400 && res.headers.get('Location')) {
         let next;
@@ -265,10 +280,10 @@ async function handleLegacyFetch(url, cors) {
   const check = validateTargetUrl(url.searchParams.get('url'));
   if (check.error) return errorResponse(check.error, 400, cors);
   try {
-    const page = await fetchPage(check.url);
+    const page = await fetchPage(check.url, { headers: LEGACY_HEADERS, cf: LEGACY_CF });
     return new Response(page.html, {
       status: page.status,
-      headers: Object.assign({ 'Content-Type': 'text/plain; charset=utf-8' }, cors),
+      headers: Object.assign({ 'Content-Type': 'text/html;charset=UTF-8' }, cors),
     });
   } catch (err) {
     return errorResponse(fetchErrorMessage(err), 502, cors);
@@ -317,17 +332,21 @@ async function readJsonBody(request) {
   }
 }
 
+function getApiKey(env) {
+  return env.ANTHROPIC_API_KEY || env.ANTHROPIC_KEY || '';
+}
+
 function anthropicHeaders(env) {
   return {
     'Content-Type': 'application/json',
-    'x-api-key': env.ANTHROPIC_API_KEY,
+    'x-api-key': getApiKey(env),
     'anthropic-version': ANTHROPIC_VERSION,
   };
 }
 
 // POST /api/plan { prompt } → JSON de Anthropic tal cual
 async function handlePlan(request, env, cors) {
-  if (!env.ANTHROPIC_API_KEY) return errorResponse('El servidor no tiene configurada la clave de Anthropic.', 500, cors);
+  if (!getApiKey(env)) return errorResponse('El servidor no tiene configurada la clave de Anthropic.', 500, cors);
   const body = await readJsonBody(request);
   if (body.error) return errorResponse(body.error, body.status, cors);
   const prompt = body.data.prompt;
@@ -340,7 +359,7 @@ async function handlePlan(request, env, cors) {
       method: 'POST',
       headers: anthropicHeaders(env),
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: env.PLAN_MODEL || DEFAULT_PLAN_MODEL,
         max_tokens: PLAN_MAX_TOKENS,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -362,7 +381,7 @@ function buildClaudePayload(input) {
     return { error: 'Modelo no permitido. Usa uno de: ' + ALLOWED_MODELS.join(', ') + '.' };
   }
 
-  let maxTokens = input.max_tokens === undefined ? PLAN_MAX_TOKENS : input.max_tokens;
+  let maxTokens = input.max_tokens === undefined ? CLAUDE_DEFAULT_MAX_TOKENS : input.max_tokens;
   if (typeof maxTokens !== 'number' || !Number.isFinite(maxTokens) || maxTokens < 1) {
     return { error: 'max_tokens debe ser un número positivo.' };
   }
@@ -401,7 +420,7 @@ function buildClaudePayload(input) {
 
 // POST /api/claude → proxy con streaming SSE
 async function handleClaude(request, env, cors) {
-  if (!env.ANTHROPIC_API_KEY) return errorResponse('El servidor no tiene configurada la clave de Anthropic.', 500, cors);
+  if (!getApiKey(env)) return errorResponse('El servidor no tiene configurada la clave de Anthropic.', 500, cors);
   const body = await readJsonBody(request);
   if (body.error) return errorResponse(body.error, body.status, cors);
   const built = buildClaudePayload(body.data);
