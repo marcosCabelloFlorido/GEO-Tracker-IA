@@ -371,10 +371,10 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sec
   --shiny-bg: var(--bg-surface-hover); --shiny-bg-subtle: var(--border-color); --shiny-fg: var(--text-secondary);
   --shiny-hl: #94a3b8; --shiny-hl-subtle: #cbd5e1; --shiny-dots: #94a3b8;
 }
-.btn-secondary, .btn-ghost, .add-row { --animation: none; --gradient-shine: var(--shiny-hl); }
-.btn-secondary::after, .btn-ghost::after { --animation: none; }
+.btn-secondary, .btn-ghost, .add-row { --animation: none; --gradient-shine: var(--shiny-hl); --gradient-percent: 0%; }
+.btn-secondary::after, .btn-ghost::after, .add-row::after { --animation: none; opacity: 0; transition: opacity var(--dur) ease; }
 .btn-secondary:is(:hover, :focus-visible), .btn-ghost:is(:hover, :focus-visible), .add-row:is(:hover, :focus-visible) { --animation: gradient-angle linear infinite; --shiny-fg: var(--text-main); }
-.btn-secondary:is(:hover, :focus-visible)::after, .btn-ghost:is(:hover, :focus-visible)::after { --animation: shimmer linear infinite; }
+.btn-secondary:is(:hover, :focus-visible)::after, .btn-ghost:is(:hover, :focus-visible)::after, .add-row:is(:hover, :focus-visible)::after { --animation: shimmer linear infinite; opacity: .45; }
 /* Peligro: rojo (eliminar, descartar) */
 .btn-danger {
   --shiny-bg: #450a0a; --shiny-bg-subtle: #7f1d1d; --shiny-fg: #fecaca;
